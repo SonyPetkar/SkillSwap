@@ -1,6 +1,7 @@
 // src/pages/RegisterPage.jsx
 import React, { useState } from "react";
 import axios from "axios";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import { FiUser, FiMail, FiLock } from "react-icons/fi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
@@ -40,7 +41,7 @@ const RegisterPage = () => {
     }
 
     try {
-      const response = await axios.post(
+      await axios.post(
         "http://localhost:5000/api/auth/register",
         {
           name,
