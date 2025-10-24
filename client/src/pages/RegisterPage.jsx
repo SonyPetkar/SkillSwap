@@ -5,7 +5,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { FiUser, FiMail, FiLock } from "react-icons/fi";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import registerImage from "../assets/auth-bg.jpg"; // Use same image as login
+import registerImage from "../assets/auth-bg.jpg"; // Use same image as login..
 
 const RegisterPage = () => {
   const [name, setName] = useState("");
