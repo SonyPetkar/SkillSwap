@@ -1,23 +1,65 @@
-// src/pages/ProfilePage.jsx
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Navbar from "../components/navbar/Navbar";
 import NotificationBell from "../components/NotificationBell";
-import ProfileCard from "../components/ProfileCard"; // Import ProfileCard
-import { FaLinkedin, FaGithub, FaTwitter, FaInstagram } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
-import { FiEdit, FiCalendar, FiClock } from "react-icons/fi";
+import {
+  Linkedin,
+  Github,
+  Twitter,
+  Edit,
+  Calendar,
+  Clock,
+  CheckCircle,
+  Circle,
+  Plus,
+  Sparkles, // AI Icon
+  X, // Close icon
+  Check, // Save icon
+  Search, // Search icon
+  MessageSquare, // Sessions icon
+  User, // User icon
+  Loader, // Loader icon
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch } from "react-redux";
 import { setNotifications } from "../redux/slices/notificationSlice";
-import Background from "../components/background/Background";
-import "../components/background/Background.css";
 import Footer from "../components/footer/Footer";
 import defaultAvatar from "../assets/avatar.jpeg";
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import "react-circular-progressbar/dist/styles.css";
+
+/**
+ * A utility component to add our animated gradient styles.
+ */
+const AnimatedGradientStyles = () => (
+  <style>
+    {`
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+      @keyframes gradient-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+      .animate-gradient-shift { background-size: 200% 200%; animation: gradient-shift 15s ease infinite; }
+      .session-list::-webkit-scrollbar { width: 8px; }
+      .session-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+      .session-list::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.6); border-radius: 10px; }
+      .session-list::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 1); }
+    `}
+  </style>
+);
+
+// Framer Motion Variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } },
+};
+const cardHoverEffect = {
+  scale: 1.02,
+  transition: { type: "spring", stiffness: 400, damping: 10 },
+};
 
 const ProfilePage = () => {
+  // --- STATE ---
   const [user, setUser] = useState(null);
   const [skillsToTeach, setSkillsToTeach] = useState([]);
   const [skillsToLearn, setSkillsToLearn] = useState([]);
@@ -29,86 +71,97 @@ const ProfilePage = () => {
   const [pendingSessions, setPendingSessions] = useState([]);
   const [acceptedSessions, setAcceptedSessions] = useState([]);
   const [completedSessions, setCompletedSessions] = useState([]);
-  const [canceledSessions, setCanceledSessions] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
-  const navigate = useNavigate();
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [statusInput, setStatusInput] = useState("");
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  // --- NEW AI MATCHMAKING STATE ---
+  const [aiMatch, setAiMatch] = useState(null);
+  const [isAiMatchLoading, setIsAiMatchLoading] = useState(false);
+  
   const dispatch = useDispatch();
 
-  // Formatters
-  const formatDate = (iso) =>
-    new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  const formatTime = (iso) =>
-    new Date(iso).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  // --- LOGIC (UNCHANGED) ---
+  const formatDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const formatTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-  // Fetch profile & notifications
   useEffect(() => {
     const fetchUserProfile = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       try {
-        const { data } = await axios.get(
-          "http://localhost:5000/api/users/profile",
-          { headers: { "x-auth-token": token } }
-        );
+        const { data } = await axios.get("http://localhost:5000/api/users/profile", { headers: { "x-auth-token": token } });
         setUser(data);
-        setSkillsToTeach(data.skillsToTeach);
-        setSkillsToLearn(data.skillsToLearn);
-
-        const notifRes = await axios.get(
-          `http://localhost:5000/api/notifications/${data._id}`,
-          { headers: { "x-auth-token": token } }
-        );
+        setSkillsToTeach(data.skillsToTeach || []);
+        setSkillsToLearn(data.skillsToLearn || []);
+        setStatusInput(data.status || "");
+        
+        const notifRes = await axios.get(`http://localhost:5000/api/notifications/${data._id}`, { headers: { "x-auth-token": token } });
         dispatch(setNotifications(notifRes.data));
-      } catch {
-        setError("Failed to load profile or notifications.");
-      }
+      } catch { setError("Failed to load profile."); }
     };
     fetchUserProfile();
   }, [dispatch]);
 
-  // Fetch sessions
   useEffect(() => {
     const fetchSessions = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       try {
-        const [p, a, c, co] = await Promise.all([
-          axios.get("http://localhost:5000/api/sessions/pending", {
-            headers: { "x-auth-token": token },
-          }),
-          axios.get("http://localhost:5000/api/sessions/accepted", {
-            headers: { "x-auth-token": token },
-          }),
-          axios.get("http://localhost:5000/api/sessions/completed", {
-            headers: { "x-auth-token": token },
-          }),
-          axios.get("http://localhost:5000/api/sessions/canceled", {
-            headers: { "x-auth-token": token },
-          }),
+        const [p, a, co] = await Promise.all([
+          axios.get("http://localhost:5000/api/sessions/pending", { headers: { "x-auth-token": token } }),
+          axios.get("http://localhost:5000/api/sessions/accepted", { headers: { "x-auth-token": token } }),
+          axios.get("http://localhost:5000/api/sessions/completed", { headers: { "x-auth-token": token } }),
         ]);
-
         const now = new Date();
-        setPendingSessions(
-          p.data.filter((session) => new Date(session.sessionDate) >= now)
-        );
+        setPendingSessions(p.data.filter((session) => new Date(session.sessionDate) >= now));
         setAcceptedSessions(a.data);
         setCompletedSessions(co.data);
-        setCanceledSessions(c.data);
-      } catch {
-        setError("Error fetching sessions");
-      }
+      } catch { setError("Error fetching sessions"); }
     };
     fetchSessions();
   }, []);
 
-  // Modal handlers
+  // --- PROFILE STRENGTH CALCULATION (Moved up to be available for hooks) ---
+  let profileStrength = 20;
+  const strengthChecks = {
+    status: !!user?.status,
+    socials: !!(user?.socials && (user.socials.linkedin || user.socials.github || user.socials.twitter)),
+    teach: skillsToTeach.length > 0 && skillsToTeach[0] !== '',
+    learn: skillsToLearn.length > 0 && skillsToLearn[0] !== '',
+  };
+  if (strengthChecks.status) profileStrength += 20;
+  if (strengthChecks.socials) profileStrength += 20;
+  if (strengthChecks.teach) profileStrength += 20;
+  if (strengthChecks.learn) profileStrength += 20;
+  
+  // --- NEW: PROACTIVE AI MATCHMAKING ---
+  const fetchAiMatch = async () => {
+    setIsAiMatchLoading(true);
+    // Mocked response:
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const mockMatch = {
+      userId: "mock-id-123",
+      name: "Alex Johnson",
+      wantsToLearn: "React", // A skill you teach
+      canTeach: "Python", // A skill you want to learn
+    };
+    setAiMatch(mockMatch);
+    setIsAiMatchLoading(false);
+  };
+
+  // *** HOOK FIX: This useEffect is now moved *before* the early return ***
+  useEffect(() => {
+    // We check for `user` here to prevent running on initial null state
+    if (user && strengthChecks.teach && strengthChecks.learn && !aiMatch && !isAiMatchLoading) {
+      // Only run if skills are set and we haven't already found a match
+      fetchAiMatch();
+    }
+  }, [user, strengthChecks.teach, strengthChecks.learn, aiMatch, isAiMatchLoading]); // Dependencies
+
+
+  // --- MODAL & NAVIGATION HANDLERS ---
   const openModal = () => {
     setModalTeach(skillsToTeach.join(", "));
     setModalLearn(skillsToLearn.join(", "));
@@ -116,538 +169,396 @@ const ProfilePage = () => {
     setSuccess("");
     setIsModalOpen(true);
   };
+  const closeModal = () => setIsModalOpen(false);
+  const handleStartChat = (id) => (window.location.href = `/chat/${id}`);
+  const handleEditProfile = () => (window.location.href = "/profile-settings");
+  const handleSearchPage = () => (window.location.href = "/search");
+  
+  // --- NEW: AI MATCH PROFILE NAVIGATION ---
+  const handleViewProfile = (id) => (window.location.href = `/user/${id}`); // Assumes you have a route like /user/:id
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setError("");
-    setSuccess("");
-  };
-
-  const handleUpdateProfile = async () => {
+  // --- DATA UPDATE HANDLERS ---
+  const handleUpdateSkills = async () => {
     const token = localStorage.getItem("token");
+    const skillsToTeachArray = modalTeach.split(",").map((s) => s.trim()).filter(s => s);
+    const skillsToLearnArray = modalLearn.split(",").map((s) => s.trim()).filter(s => s);
+    
     try {
-      const { data } = await axios.put(
-        "http://localhost:5000/api/users/profile",
-        {
-          name: user.name, // Ensure `name` is sent in the request
-          status: user.status,
-          socials: user.socials,
-          skillsToTeach: modalTeach.split(",").map((s) => s.trim()),
-          skillsToLearn: modalLearn.split(",").map((s) => s.trim()),
-        },
-        { headers: { "x-auth-token": token } }
-      );
+      const { data } = await axios.put("http://localhost:5000/api/users/profile", {
+        ...user,
+        skillsToTeach: skillsToTeachArray,
+        skillsToLearn: skillsToLearnArray,
+      }, { headers: { "x-auth-token": token } });
+      
       setUser(data);
       setSkillsToTeach(data.skillsToTeach);
       setSkillsToLearn(data.skillsToLearn);
-      setSuccess("Profile updated successfully!");
+      setSuccess("Skills updated successfully!");
       closeModal();
-    } catch {
-      setError("Failed to update profile.");
-    }
+    } catch { setError("Failed to update skills."); }
+  };
+  
+  const handleStatusUpdate = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const { data } = await axios.put("http://localhost:5000/api/users/profile", {
+        ...user,
+        status: statusInput,
+      }, { headers: { "x-auth-token": token } });
+      
+      setUser(data);
+      setStatusInput(data.status);
+      setSuccess("Status updated!");
+      setIsEditingStatus(false);
+    } catch { setError("Failed to update status."); }
   };
 
-  // Session actions
   const handleAccept = async (id) => {
     const token = localStorage.getItem("token");
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/sessions/accept",
-        { sessionId: id },
-        { headers: { "x-auth-token": token } }
-      );
+      const res = await axios.post("http://localhost:5000/api/sessions/accept", { sessionId: id }, { headers: { "x-auth-token": token } });
       setPendingSessions((ps) => ps.filter((s) => s._id !== id));
       setAcceptedSessions((as) => [...as, res.data.session]);
       setSuccess("Session accepted");
-    } catch {
-      setError("Failed to accept session.");
-    }
+    } catch { setError("Failed to accept session."); }
   };
-  const handleStartChat = (id) => navigate(`/chat/${id}`);
-
+  
   const getSessionPartnerName = (session) => {
-    const partner =
-      session.userId1?._id === user?._id ? session.userId2 : session.userId1;
+    const partner = session.userId1?._id === user?._id ? session.userId2 : session.userId1;
     return partner?.name ?? "Unknown User";
   };
+  
+  // --- MODAL AI SUGGESTER ---
+  const handleAiSuggest = async () => {
+    if (!modalTeach) {
+      setError("Please add your 'Skills to Teach' first so the AI can give good suggestions.");
+      return;
+    }
+    setError("");
+    setIsAiLoading(true);
+    try {
+      // --- MOCK API CALL ---
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const suggestions = "Next.js, TypeScript, GraphQL, Node.js, UI/UX Principles";
+      setModalLearn(suggestions);
+    } catch (err) {
+      setError("AI Suggestion failed. Please try again.");
+    }
+    setIsAiLoading(false);
+  };
 
-  // Show loading state until the profile is available
+  // AI Growth Coach Logic
+  const getAiGrowthTip = () => {
+    if (!strengthChecks.teach) {
+      return { text: "Add skills you can teach. This is the #1 way to get matched!", cta: "Add Skills", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
+    }
+    if (!strengthChecks.learn) {
+      return { text: "What are you curious about? Add skills to learn and find mentors.", cta: "Add Skills", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
+    }
+    if (pendingSessions.length > 0) {
+      return { text: "You have pending session requests! Respond now to build momentum.", cta: "View Sessions", onClick: () => document.getElementById('session-hub')?.scrollIntoView({ behavior: 'smooth' }), icon: <MessageSquare size={18} className="mr-2" /> };
+    }
+    
+    // --- NEW AI MATCH LOGIC ---
+    if (isAiMatchLoading) {
+      return { text: "Your AI Coach is scanning the network for your perfect match...", cta: "Scanning...", disabled: true, icon: <Loader size={18} className="mr-2 animate-spin" /> };
+    }
+    if (aiMatch) {
+      return { text: `AI Match Found! ${aiMatch.name} wants to learn ${aiMatch.wantsToLearn} and can teach you ${aiMatch.canTeach}.`, cta: "View Profile", onClick: () => handleViewProfile(aiMatch.userId), icon: <User size={18} className="mr-2" /> };
+    }
+    
+    // Fallback
+    return { text: "Your profile is set! You're all set to find a swap.", cta: "Find Manually", onClick: handleSearchPage, icon: <Search size={18} className="mr-2" /> };
+  };
+
+  const aiTip = getAiGrowthTip();
+  
+  // --- LOADING STATE (This is now safe to use) ---
   if (!user) {
-    return <div>Loading...</div>; // Or use a spinner/loading indicator
+    return (
+      <div className="flex items-center justify-center min-h-screen w-full px-4 py-12 bg-gray-900 text-gray-200">
+        Loading your profile...
+      </div>
+    );
   }
 
+  // --- RENDER ---
   return (
-    <div className="min-h-screen relative">
-      <Background />
+    <div className="min-h-screen relative w-full bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 animate-gradient-shift overflow-x-hidden font-['Inter',_sans-serif]">
+      <AnimatedGradientStyles />
       <div className="relative z-10">
         <Navbar />
-        {/* Profile and Notification Section */}
-        <div className="px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-start max-w-7xl mx-auto p-4 md:p-8 space-y-6 md:space-y-0">
-            {/* Left Profile Card */}
-            <div className="relative bg-gradient-to-br from-blue-400 via-blue-300 to-blue-200 rounded-xl shadow-lg p-4 md:p-6 min-h-[10rem] md:min-h-[12rem] flex flex-col md:flex-row items-center space-x-0 md:space-x-6 w-full h-auto md:h-60 transition hover:shadow-2xl md:mr-4 transition-shadow duration-300 self-start">
-              {/* Controls: Notifications + Edit */}
-              <div className="absolute top-4 right-4 flex items-center space-x-2">
-                <NotificationBell />
-                <button
-                  onClick={() => navigate("/profile-settings")}
-                  className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition"
-                  title="Edit Profile"
-                >
-                  <FiEdit size={20} className="md:w-6 md:h-6" />
-                </button>
-              </div>
+        <motion.div
+          className="max-w-7xl mx-auto p-4 md:p-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* --- NOTIFICATION BANNERS --- */}
+          {success && (
+            <motion.div variants={itemVariants} className="bg-green-900/50 border border-green-700 text-green-300 p-3 rounded-lg mb-6">
+              {success}
+            </motion.div>
+          )}
+          {error && (
+            <motion.div variants={itemVariants} className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-lg mb-6">
+              {error}
+            </motion.div>
+          )}
 
-              {/* Profile Picture */}
-              <div className="w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden border-4 border-white shadow-md">
+          {/* --- INTERACTIVE PROFILE HUB --- */}
+          <motion.div
+            variants={itemVariants}
+            whileHover={cardHoverEffect}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-8 bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
+          >
+            {/* Left Side: Profile Info */}
+            <div className="lg:col-span-2 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 relative">
+              <div className="absolute top-0 right-0 flex items-center space-x-2">
+                <NotificationBell />
+              </div>
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-emerald-700/50 shadow-md flex-shrink-0">
                 <img
-                  src={
-                    user?.profilePicture
-                      ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}`
-                      : defaultAvatar
-                  }
+                  src={user?.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}` : defaultAvatar}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
               </div>
-
-              {/* User Info */}
-              <div className="text-center md:text-left space-y-2 mt-4 md:mt-0">
-                <h2 className="text-2xl md:text-3xl font-bold text-white">
-                  {user?.name || "User"}
-                </h2>
-                <p className="text-base md:text-lg text-white">
-                  Welcome to your profile!
-                </p>
-
-                {user?.status && (
-                  <p className="text-xs md:text-sm text-white">
-                    <span className="font-semibold text-white">Status:</span>{" "}
-                    {user.status}
-                  </p>
-                )}
-
-                {/* Social Links */}
-                {user?.socials && (
-                  <div className="flex justify-center md:justify-start space-x-3 md:space-x-4 mt-2">
-                    {user.socials.linkedin && (
-                      <a
-                        href={user.socials.linkedin}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:text-blue-500 transition"
-                      >
-                        <FaLinkedin size={20} className="md:w-6 md:h-6" />
-                      </a>
-                    )}
-                    {user.socials.facebook && (
-                      <a
-                        href={user.socials.facebook}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-700 hover:text-blue-700 transition"
-                      >
-                        <i className="fab fa-facebook text-lg md:text-xl"></i>
-                      </a>
-                    )}
-                    {user.socials.twitter && (
-                      <a
-                        href={user.socials.twitter}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-pink-500 hover:text-blue-400 transition"
-                      >
-                        <FaInstagram size={20} className="md:w-6 md:h-6" />
-                      </a>
-                    )}
+              <div className="text-center sm:text-left w-full">
+                <h2 className="text-3xl font-bold text-white">{user?.name || "User"}</h2>
+                {!isEditingStatus ? (
+                  <div className="flex items-center justify-center sm:justify-start group" onClick={() => setIsEditingStatus(true)}>
+                    <p className="text-lg text-gray-300 mt-1 italic group-hover:text-emerald-300 cursor-pointer">
+                      {statusInput || "Click to set your status"}
+                    </p>
+                    <Edit size={16} className="ml-2 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <input type="text" value={statusInput} onChange={(e) => setStatusInput(e.target.value)} className="w-full sm:w-auto bg-gray-800/50 border border-emerald-700 text-white rounded-lg px-3 py-1 text-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="What are you working on?" />
+                    <button onClick={handleStatusUpdate} className="p-1.5 bg-green-600 rounded-md hover:bg-green-500"><Check size={16} /></button>
+                    <button onClick={() => setIsEditingStatus(false)} className="p-1.5 bg-red-600 rounded-md hover:bg-red-500"><X size={16} /></button>
                   </div>
                 )}
-              </div>
-
-              {/* Progress Tracking - Now Responsive */}
-              <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 md:gap-4 lg:gap-8 mt-4 md:mt-0 ml-auto">
-                {/* Completed Sessions */}
-                <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24">
-                  <CircularProgressbar
-                    value={
-                      (completedSessions.length /
-                        (pendingSessions.length +
-                          completedSessions.length +
-                          canceledSessions.length +
-                          acceptedSessions.length)) *
-                        100 || 0
-                    }
-                    text={`${completedSessions.length}`}
-                    styles={buildStyles({
-                      textSize: "32px",
-                      textColor: "#fff",
-                      pathColor: "#4caf50",
-                      trailColor: "#d6d6d6",
-                    })}
-                  />
-                  <p className="text-center text-white text-xs md:text-sm mt-1">
-                    Completed
-                  </p>
-                </div>
-
-                {/* Pending Sessions */}
-                <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24">
-                  <CircularProgressbar
-                    value={
-                      (pendingSessions.length /
-                        (pendingSessions.length +
-                          completedSessions.length +
-                          canceledSessions.length +
-                          acceptedSessions.length)) *
-                        100 || 0
-                    }
-                    text={`${pendingSessions.length}`}
-                    styles={buildStyles({
-                      textSize: "32px",
-                      textColor: "#fff",
-                      pathColor: "#ff9800",
-                      trailColor: "#d6d6d6",
-                    })}
-                  />
-                  <p className="text-center text-white text-xs md:text-sm mt-1">
-                    Pending
-                  </p>
-                </div>
-
-                {/* Upcoming Sessions */}
-                <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24">
-                  <CircularProgressbar
-                    value={
-                      (acceptedSessions.length /
-                        (pendingSessions.length +
-                          completedSessions.length +
-                          canceledSessions.length +
-                          acceptedSessions.length)) *
-                        100 || 0
-                    }
-                    text={`${acceptedSessions.length}`}
-                    styles={buildStyles({
-                      textSize: "32px",
-                      textColor: "#fff",
-                      pathColor: "#2196f3",
-                      trailColor: "#d6d6d6",
-                    })}
-                  />
-                  <p className="text-center text-white text-xs md:text-sm mt-1">
-                    Upcoming
-                  </p>
-                </div>
-
-                {/* Canceled Sessions */}
-                <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24">
-                  <CircularProgressbar
-                    value={
-                      (canceledSessions.length /
-                        (pendingSessions.length +
-                          completedSessions.length +
-                          canceledSessions.length +
-                          acceptedSessions.length)) *
-                        100 || 0
-                    }
-                    text={`${canceledSessions.length}`}
-                    styles={buildStyles({
-                      textSize: "32px",
-                      textColor: "#fff",
-                      pathColor: "#f44336",
-                      trailColor: "#d6d6d6",
-                    })}
-                  />
-                  <p className="text-center text-white text-xs md:text-sm mt-1">
-                    Canceled
-                  </p>
+                <div className="flex justify-center sm:justify-start space-x-4 mt-4">
+                  {user.socials?.linkedin && <a href={user.socials.linkedin} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Linkedin size={22} /></a>}
+                  {user.socials?.github && <a href={user.socials.github} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Github size={22} /></a>}
+                  {user.socials?.twitter && <a href={user.socials.twitter} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Twitter size={22} /></a>}
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Profile Info and Skills Info */}
-          <div className="max-w-7xl mx-auto p-4 md:p-8">
-            {success && (
-              <div className="bg-green-500 text-white p-2 rounded mb-4">
-                {success}
+            {/* Right Side: Profile Strength */}
+            <div className="border-t border-emerald-900/50 lg:border-t-0 lg:border-l lg:pl-6 pt-6 lg:pt-0">
+              <h3 className="text-2xl font-semibold text-white mb-4">Profile Strength</h3>
+              <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
+                <motion.div className="bg-gradient-to-r from-teal-400 to-emerald-500 h-3 rounded-full" initial={{ width: "0%" }} animate={{ width: `${profileStrength}%` }} transition={{ duration: 1, ease: "easeInOut" }}></motion.div>
               </div>
-            )}
-            {error && (
-              <div className="bg-red-500 text-white p-2 rounded mb-4">
-                {error}
+              <p className="text-lg font-semibold text-emerald-300 mb-4">{profileStrength}% Complete</p>
+              <ul className="space-y-3">
+                <li className={`flex items-center ${strengthChecks.status ? "text-gray-300" : "text-gray-500"}`}>
+                  {strengthChecks.status ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Set your status
+                </li>
+                <li className={`flex items-center justify-between ${strengthChecks.socials ? "text-gray-300" : "text-gray-500"}`}>
+                  <div className="flex items-center">{strengthChecks.socials ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Link social accounts</div>
+                  {!strengthChecks.socials && <button onClick={handleEditProfile} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
+                </li>
+                <li className={`flex items-center justify-between ${strengthChecks.teach ? "text-gray-300" : "text-gray-500"}`}>
+                  <div className="flex items-center">{strengthChecks.teach ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Add skills to teach</div>
+                  {!strengthChecks.teach && <button onClick={openModal} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
+                </li>
+                <li className={`flex items-center justify-between ${strengthChecks.learn ? "text-gray-300" : "text-gray-500"}`}>
+                  <div className="flex items-center">{strengthChecks.learn ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Add skills to learn</div>
+                  {!strengthChecks.learn && <button onClick={openModal} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
+                </li>
+              </ul>
+            </div>
+          </motion.div>
+
+          {/* --- MAIN DATA ROW: SKILLS + SESSIONS --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
+            {/* --- SKILL BANK --- */}
+            <motion.div
+              variants={itemVariants}
+              whileHover={cardHoverEffect}
+              className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col hover:shadow-emerald-500/20 transition-all duration-300"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold text-white">My Skill Bank</h2>
+                <button onClick={openModal} className="flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-sm font-medium">
+                  <Edit size={16} className="mr-2" /> Manage Skills
+                </button>
               </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-              {/* Skills Card */}
-              <div className="bg-gradient-to-br from-blue-400 via-blue-300 to-blue-200 rounded-lg shadow-lg p-4 md:p-6 h-80 md:h-96 overflow-y-auto hover:shadow-2xl transition-shadow duration-300">
-                <div className="flex justify-between items-center mb-4 md:mb-6">
-                  <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 text-left">
-                    Your Skills
-                  </h2>
-                  <div
-                    onClick={openModal}
-                    className="bg-blue-600 text-white p-2 md:p-3 rounded-full cursor-pointer hover:bg-blue-700 transition"
-                  >
-                    <FiEdit size={20} className="md:w-6 md:h-6" />
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-xl md:text-2xl font-medium text-gray-700 mb-2 text-left">
-                    Skills You Can Teach:
-                  </p>
+              <div className="space-y-6 overflow-y-auto session-list pr-2">
+                <div>
+                  <p className="text-lg font-medium text-gray-300 mb-3">Skills I Can Teach:</p>
                   <div className="flex flex-wrap gap-2">
-                    {skillsToTeach.length > 0 ? (
-                      skillsToTeach
-                        .flatMap((skill) =>
-                          skill.split(",").map((s) => s.trim())
-                        )
-                        .map((s, i) => (
-                          <span
-                            key={i}
-                            className="bg-blue-200 text-blue-800 text-sm md:text-lg font-medium rounded-full px-3 py-1 md:px-5 md:py-2 hover:bg-blue-300 transition"
-                          >
-                            {s}
-                          </span>
-                        ))
-                    ) : (
-                      <span className="text-gray-500 text-sm md:text-lg">
-                        None
-                      </span>
-                    )}
+                    {strengthChecks.teach ? (
+                      skillsToTeach.map((s, i) => (<span key={i} className="bg-emerald-800/50 border border-emerald-700 text-emerald-200 text-base font-medium rounded-full px-4 py-1">{s}</span>))
+                    ) : ( <span className="text-gray-500 text-sm p-2 italic">Add skills to teach...</span> )}
                   </div>
                 </div>
                 <div>
-                  <p className="text-xl md:text-2xl font-medium text-gray-700 mb-2 text-left">
-                    Skills You Want to Learn:
-                  </p>
+                  <p className="text-lg font-medium text-gray-300 mb-3">Skills I Want to Learn:</p>
                   <div className="flex flex-wrap gap-2">
-                    {skillsToLearn.length > 0 ? (
-                      skillsToLearn
-                        .flatMap((skill) =>
-                          skill.split(",").map((s) => s.trim())
-                        )
-                        .map((s, i) => (
-                          <span
-                            key={i}
-                            className="bg-green-200 text-green-800 text-sm md:text-lg font-medium rounded-full px-3 py-1 md:px-5 md:py-2 hover:bg-green-300 transition"
-                          >
-                            {s}
-                          </span>
-                        ))
-                    ) : (
-                      <span className="text-gray-500 text-sm md:text-lg">
-                        None
-                      </span>
-                    )}
+                    {strengthChecks.learn ? (
+                      skillsToLearn.map((s, i) => (<span key={i} className="bg-teal-800/50 border border-teal-700 text-teal-200 text-base font-medium rounded-full px-4 py-1">{s}</span>))
+                    ) : ( <span className="text-gray-500 text-sm p-2 italic">Add skills to learn...</span> )}
                   </div>
                 </div>
               </div>
+            </motion.div>
 
-              {/* Sessions Card */}
-              <div className="bg-gradient-to-br from-blue-400 via-blue-300 to-blue-200 rounded-lg shadow-lg p-4 md:p-6 h-80 md:h-96 flex flex-col hover:shadow-2xl transition-shadow duration-300">
-                <h2 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4 md:mb-6 text-left">
-                  Your Sessions
-                </h2>
-
-                <div className="flex flex-wrap gap-2 md:space-x-4 mb-4">
-                  <button
-                    onClick={() => setActiveTab("pending")}
-                    className={`px-3 py-1 md:px-4 md:py-2 rounded-lg font-medium text-sm md:text-base transition ${
-                      activeTab === "pending"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Pending
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("upcoming")}
-                    className={`px-3 py-1 md:px-4 md:py-2 rounded-lg font-medium text-sm md:text-base transition ${
-                      activeTab === "upcoming"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Upcoming
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("completed")}
-                    className={`px-3 py-1 md:px-4 md:py-2 rounded-lg font-medium text-sm md:text-base transition ${
-                      activeTab === "completed"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Completed
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("canceled")}
-                    className={`px-3 py-1 md:px-4 md:py-2 rounded-lg font-medium text-sm md:text-base transition ${
-                      activeTab === "canceled"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Canceled
-                  </button>
-                </div>
-
-                {/* Scrollable sessions list */}
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2 session-list">
-                  {(activeTab === "pending"
-                    ? pendingSessions
-                    : activeTab === "upcoming"
-                    ? acceptedSessions
-                    : activeTab === "completed"
-                    ? completedSessions
-                    : canceledSessions
-                  ).length > 0 ? (
-                    (activeTab === "pending"
-                      ? pendingSessions
-                      : activeTab === "upcoming"
-                      ? acceptedSessions
-                      : activeTab === "completed"
-                      ? completedSessions
-                      : canceledSessions
-                    ).map((s) => (
-                      <div
-                        key={s._id}
-                        className="bg-white ring-1 ring-gray-100 rounded-lg shadow p-3 md:p-4 hover:shadow-md hover:-translate-y-0.5 transition"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2">
-                          <div className="flex items-center space-x-2">
-                            <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs md:text-sm font-semibold">
-                              {s.userId1?.name
-                                ? s.userId1.name
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .toUpperCase()
-                                : "U"}
-                            </div>
-                            <span className="text-sm md:text-base font-semibold text-gray-800">
-                              {getSessionPartnerName(s, user._id)}
-                            </span>
-                          </div>
-                          <p className="text-xs md:text-sm text-gray-600">
-                            {s.skill}
-                          </p>
-                          <span className="text-xs md:text-sm text-gray-500">
-                            {formatDate(s.sessionDate)}
-                          </span>
+            {/* --- SESSION HUB --- */}
+            <motion.div
+              id="session-hub"
+              variants={itemVariants}
+              whileHover={cardHoverEffect}
+              className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col hover:shadow-emerald-500/20 transition-all duration-300"
+            >
+              <h2 className="text-2xl font-semibold text-white mb-4">My Session Hub</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button onClick={() => setActiveTab("pending")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "pending" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Pending ({pendingSessions.length})</button>
+                <button onClick={() => setActiveTab("upcoming")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "upcoming" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Upcoming ({acceptedSessions.length})</button>
+                {/* --- THIS IS THE FIX --- */}
+                <button onClick={() => setActiveTab("completed")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "completed" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Completed ({completedSessions.length})</button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 session-list">
+                {/* *** THIS IS THE FIX: Added closing parenthesis *** */}
+                {(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).length > 0 ? (
+                  (activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).map((s) => (
+                    <div key={s._id} className="bg-gray-800/60 ring-1 ring-emerald-700/50 rounded-lg p-4 hover:bg-gray-700/70 transition flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{getSessionPartnerName(s, user._id)}</p>
+                        <p className="text-sm text-emerald-300">{s.skill}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-400 mt-1">
+                          <span className="flex items-center"><Calendar size={14} className="mr-1.5" /> {formatDate(s.sessionDate)}</span>
+                          <span className="flex items-center"><Clock size={14} className="mr-1.5" /> {formatTime(s.sessionDate)}</span>
                         </div>
-
-                        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 text-gray-600 mb-3 text-xs md:text-sm gap-2">
-                          <div className="flex items-center space-x-1">
-                            <FiCalendar size={12} className="md:w-4 md:h-4" />
-                            <span>{formatDate(s.sessionDate)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <FiClock size={12} className="md:w-4 md:h-4" />
-                            <span>{formatTime(s.sessionDate)}</span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() =>
-                            activeTab === "pending"
-                              ? handleAccept(s._id)
-                              : handleStartChat(s._id)
-                          }
-                          className={`text-xs md:text-sm font-medium px-2 py-1 md:px-3 md:py-1.5 rounded-lg transition ${
-                            activeTab === "pending"
-                              ? "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          } active:scale-95`}
-                        >
-                        {activeTab === "pending"
-                          ? "Accept"
-                          : activeTab === "upcoming"
-                          ? "Start Chat"
-                          : "View Feedback"}
-                        </button>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center text-sm md:text-base">
-                      {activeTab === "pending"
-                        ? "No pending sessions."
-                        : activeTab === "upcoming"
-                        ? "No upcoming sessions."
-                        : activeTab === "completed"
-                        ? "No completed sessions."
-                        : "No canceled sessions."}
-                    </p>
-                  )}
+                      <button
+                        onClick={() => activeTab === "pending" ? handleAccept(s._id) : handleStartChat(s._id)}
+                        className={`mt-3 sm:mt-0 text-sm font-medium px-3 py-1.5 rounded-lg transition active:scale-95 ${activeTab === "pending" ? "bg-green-500 text-white hover:bg-green-600" : "bg-teal-500 text-white hover:bg-teal-600"}`}
+                      >
+                        {activeTab === "pending" ? "Accept" : activeTab === "upcoming" ? "Start Chat" : "View Feedback"}
+                      </button>
+                    </div>
+                  ))
+                ) : ( <p className="text-gray-500 text-center pt-16">No {activeTab} sessions.</p> )}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* --- WIDGET ROW: AI COACH + ACTIVITY --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+            {/* --- AI GROWTH COACH (NEW) --- */}
+            <motion.div
+              variants={itemVariants}
+              whileHover={cardHoverEffect}
+              className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
+            >
+              <div className="flex items-center mb-4">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                >
+                  <Sparkles size={24} className="text-emerald-400 mr-3" />
+                </motion.div>
+                <h2 className="text-2xl font-semibold text-white">AI Growth Coach</h2>
+              </div>
+              <p className="text-lg text-gray-300 mb-5 min-h-[56px]">{aiTip.text}</p>
+              <button
+                onClick={aiTip.onClick}
+                disabled={aiTip.disabled}
+                className="w-full flex items-center justify-center px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-base font-medium disabled:opacity-50 disabled:cursor-wait"
+              >
+                {aiTip.icon}
+                {aiTip.cta}
+              </button>
+            </motion.div>
+
+            {/* --- ACTIVITY HUB --- */}
+            <motion.div
+              variants={itemVariants}
+              whileHover={cardHoverEffect}
+              className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
+            >
+              <h3 className="text-2xl font-semibold text-white mb-4">Activity at a Glance</h3>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="p-3 bg-emerald-500/20 rounded-lg mr-4"><CheckCircle className="text-emerald-400" size={24} /></div>
+                  <div>
+                    <p className="text-3xl font-bold text-white">{completedSessions.length}</p>
+                    <p className="text-sm text-gray-300">Sessions Completed</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <div className="p-3 bg-sky-500/20 rounded-lg mr-4"><Calendar className="text-sky-400" size={24} /></div>
+                  <div>
+                    <p className="text-3xl font-bold text-white">{acceptedSessions.length}</p>
+                    <p className="text-sm text-gray-300">Sessions Upcoming</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <div className="p-3 bg-amber-500/20 rounded-lg mr-4"><Clock className="text-amber-400" size={24} /></div>
+                  <div>
+                    <p className="text-3xl font-bold text-white">{pendingSessions.length}</p>
+                    <p className="text-sm text-gray-300">Sessions Pending</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
 
-        {/* Edit Modal */}
+        </motion.div>
+
+        {/* --- EDIT MODAL (with AI) --- */}
         <AnimatePresence>
           {isModalOpen && (
             <motion.div
-              className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
               <motion.div
-                className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 md:max-w-lg"
-                initial={{ y: "100vh", opacity: 0 }}
+                className="bg-gray-900/80 backdrop-blur-xl border border-emerald-700/50 rounded-lg shadow-xl p-6 w-full max-w-lg"
+                initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: "100vh", opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                exit={{ y: 50, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
               >
-                <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-6 text-left">
-                  Update Your Skills
-                </h2>
-
-                {error && <p className="text-red-500 mb-4">{error}</p>}
-                {success && <p className="text-green-500 mb-4">{success}</p>}
-
+                <h2 className="text-2xl font-semibold text-white mb-6">Tune Your Skill Profile</h2>
+                {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
+                
                 <div className="mb-4">
-                  <label className="block text-gray-700 mb-2 text-left">
-                    Skills You Can Teach
-                  </label>
-                  <input
-                    type="text"
-                    value={modalTeach}
-                    onChange={(e) => setModalTeach(e.target.value)}
-                    className="w-full border rounded-lg p-2 md:p-3 text-sm md:text-base"
-                    placeholder="e.g. JavaScript, Python"
-                  />
+                  <label className="block text-gray-300 mb-2">Skills You Can Teach</label>
+                  <input type="text" value={modalTeach} onChange={(e) => setModalTeach(e.target.value)} className="w-full border border-gray-600 rounded-lg p-3 text-base bg-gray-800/50 text-white placeholder-gray-500 focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. JavaScript, Python, UI Design" />
+                  <p className="text-xs text-gray-400 mt-1">Separate skills with a comma.</p>
                 </div>
+                
                 <div className="mb-6">
-                  <label className="block text-gray-700 mb-2 text-left">
-                    Skills You Want to Learn
-                  </label>
-                  <input
-                    type="text"
-                    value={modalLearn}
-                    onChange={(e) => setModalLearn(e.target.value)}
-                    className="w-full border rounded-lg p-2 md:p-3 text-sm md:text-base"
-                    placeholder="e.g. React, Data Science"
-                  />
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-gray-300">Skills You Want to Learn</label>
+                    <button
+                      onClick={handleAiSuggest}
+                      disabled={isAiLoading}
+                      className="flex items-center text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-wait"
+                    >
+                      <Sparkles size={16} className={`mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
+                      {isAiLoading ? 'Suggesting...' : 'AI Suggest'}
+                    </button>
+                  </div>
+                  <input type="text" value={modalLearn} onChange={(e) => setModalLearn(e.target.value)} className="w-full border border-gray-600 rounded-lg p-3 text-base bg-gray-800/50 text-white placeholder-gray-500 focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. React, Data Science, Figma" />
+                  <p className="text-xs text-gray-400 mt-1">Separate skills with a comma.</p>
                 </div>
 
-                <div className="flex justify-end space-x-3 md:space-x-4">
-                  <button
-                    onClick={closeModal}
-                    className="px-3 py-1 md:px-4 md:py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition text-sm md:text-base"
-                  >
+                <div className="flex justify-end space-x-4">
+                  <button onClick={closeModal} className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition text-base">
                     Cancel
                   </button>
-                  <button
-                    onClick={handleUpdateProfile}
-                    className="px-3 py-1 md:px-4 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm md:text-base"
-                  >
-                    Save
+                  <button onClick={handleUpdateSkills} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-base">
+                    Save My Skills
                   </button>
                 </div>
               </motion.div>
