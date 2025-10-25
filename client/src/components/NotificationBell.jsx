@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const NotificationBell = ({ className = "" }) => { // Accept className prop for external styling
   const dispatch = useDispatch();
-  // eslint-disable-next-line no-unused-vars
   const { notifications, unreadCount } = useSelector((state) => state.notifications);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
