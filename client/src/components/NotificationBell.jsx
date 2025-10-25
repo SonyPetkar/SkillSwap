@@ -1,40 +1,57 @@
+/* eslint-disable no-unused-vars */
 // src/components/NotificationBell.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setNotifications } from '../redux/slices/notificationSlice';
-import { FaBell } from 'react-icons/fa';
+import { Bell, Loader, X } from 'lucide-react'; // Added X just in case
 import io from 'socket.io-client';
 import NotificationDropdown from './NotificationDropdown';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const NotificationBell = () => {
+const NotificationBell = ({ className = "" }) => { // Accept className prop for external styling
   const dispatch = useDispatch();
+  // eslint-disable-next-line no-unused-vars
   const { notifications, unreadCount } = useSelector((state) => state.notifications);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
+  
+  // You might want to remove this effect if initial notifications are fetched on ProfilePage load
   useEffect(() => {
     const socket = io('http://localhost:5000/notifications');
     socket.on('new_notification', (notification) => {
-      dispatch(setNotifications([notification]));
+      // Assuming setNotifications is designed to ADD new notifications when passed an array
+      dispatch(setNotifications((prev) => [...prev, notification])); // Safer dispatch logic
     });
     return () => socket.disconnect();
   }, [dispatch]);
 
   return (
-    <div className="relative">
-      <button
+    <div className={`relative ${className}`}>
+      <motion.button
         onClick={() => setIsDropdownOpen((open) => !open)}
-        className="w-14 h-14  bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-shadow shadow-md"
-        title="Notifications"
+        className="relative transition-all duration-200" // Base class for animation/positioning
+        whileTap={{ scale: 0.95 }}
+        title={`Notifications (${unreadCount} unread)`}
+        aria-expanded={isDropdownOpen}
+        aria-controls="notification-dropdown"
       >
-        <FaBell size={28} />
+        <Bell size={24} className="w-6 h-6" /> {/* Themed Lucide Icon */}
+        
+        {/* Unread Count Badge (Themed) */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {unreadCount}
-          </span>
+          <motion.span 
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="absolute -top-1 -right-1 bg-red-600 text-white text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center ring-2 ring-gray-900 shadow-md"
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </motion.span>
         )}
-      </button>
+      </motion.button>
 
-      {isDropdownOpen && <NotificationDropdown />}
+      {/* Notification Dropdown (Assume NotificationDropdown is styled separately) */}
+      <AnimatePresence>
+        {isDropdownOpen && <NotificationDropdown id="notification-dropdown" />}
+      </AnimatePresence>
     </div>
   );
 };

@@ -20,6 +20,8 @@ import {
   MessageSquare, // Sessions icon
   User, // User icon
   Loader, // Loader icon
+  Brain, // Added Brain icon for AI score
+  TrendingUp, // Added TrendingUp for Skill Rank
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch } from "react-redux";
@@ -31,17 +33,15 @@ import defaultAvatar from "../assets/avatar.jpeg";
  * A utility component to add our animated gradient styles.
  */
 const AnimatedGradientStyles = () => (
-  <style>
-    {`
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-      @keyframes gradient-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-      .animate-gradient-shift { background-size: 200% 200%; animation: gradient-shift 15s ease infinite; }
-      .session-list::-webkit-scrollbar { width: 8px; }
-      .session-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-      .session-list::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.6); border-radius: 10px; }
-      .session-list::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 1); }
-    `}
-  </style>
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @keyframes gradient-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+    .animate-gradient-shift { background-size: 200% 200%; animation: gradient-shift 15s ease infinite; }
+    .session-list::-webkit-scrollbar { width: 8px; }
+    .session-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+    .session-list::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.6); border-radius: 10px; }
+    .session-list::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 1); }
+  `}</style>
 );
 
 // Framer Motion Variants
@@ -57,6 +57,39 @@ const cardHoverEffect = {
   scale: 1.02,
   transition: { type: "spring", stiffness: 400, damping: 10 },
 };
+
+// --- Helper for Skill Rank Visualization ---
+const SkillLevelIndicator = ({ teachSkills, learnSkills }) => {
+    const totalSkills = teachSkills.length + learnSkills.length;
+    let level = 'Novice';
+    let color = 'text-gray-500';
+
+    if (totalSkills >= 1) {
+        level = 'Explorer';
+        color = 'text-yellow-400';
+    }
+    if (totalSkills >= 5) {
+        level = 'Collaborator';
+        color = 'text-cyan-400';
+    }
+    if (totalSkills >= 10) {
+        level = 'Master Swapper';
+        color = 'text-emerald-400';
+    }
+
+    return (
+        <div className="p-4 bg-black/30 rounded-lg border border-teal-500/50 shadow-lg mt-6 text-center">
+            <TrendingUp size={24} className={`mx-auto mb-2 ${color}`} />
+            <h4 className="text-lg font-bold text-white">Current Swap Rank:</h4>
+            <p className={`text-2xl font-extrabold ${color} transition-colors duration-300`}>
+                {level}
+            </p>
+            <p className="text-sm text-gray-400 mt-1">Total skills tracked: {totalSkills}</p>
+        </div>
+    );
+};
+// --- End Skill Rank Visualization ---
+
 
 const ProfilePage = () => {
   // --- STATE ---
@@ -139,7 +172,7 @@ const ProfilePage = () => {
   // --- NEW: PROACTIVE AI MATCHMAKING ---
   const fetchAiMatch = async () => {
     setIsAiMatchLoading(true);
-    // Mocked response:
+    // *** NOTE: This mock needs to be replaced with your real backend call ***
     await new Promise(resolve => setTimeout(resolve, 2000));
     const mockMatch = {
       userId: "mock-id-123",
@@ -153,12 +186,10 @@ const ProfilePage = () => {
 
   // *** HOOK FIX: This useEffect is now moved *before* the early return ***
   useEffect(() => {
-    // We check for `user` here to prevent running on initial null state
     if (user && strengthChecks.teach && strengthChecks.learn && !aiMatch && !isAiMatchLoading) {
-      // Only run if skills are set and we haven't already found a match
       fetchAiMatch();
     }
-  }, [user, strengthChecks.teach, strengthChecks.learn, aiMatch, isAiMatchLoading]); // Dependencies
+  }, [user, strengthChecks.teach, strengthChecks.learn, aiMatch, isAiMatchLoading]);
 
 
   // --- MODAL & NAVIGATION HANDLERS ---
@@ -175,7 +206,7 @@ const ProfilePage = () => {
   const handleSearchPage = () => (window.location.href = "/search");
   
   // --- NEW: AI MATCH PROFILE NAVIGATION ---
-  const handleViewProfile = (id) => (window.location.href = `/user/${id}`); // Assumes you have a route like /user/:id
+  const handleViewProfile = (id) => (window.location.href = `/user/${id}`);
 
   // --- DATA UPDATE HANDLERS ---
   const handleUpdateSkills = async () => {
@@ -247,28 +278,60 @@ const ProfilePage = () => {
     setIsAiLoading(false);
   };
 
-  // AI Growth Coach Logic
+  // --- ENHANCED AI GROWTH TIP LOGIC ---
+  const getSkillConcentrationAnalysis = (teachCount, learnCount) => {
+      if (teachCount >= 5 && learnCount <= 1) {
+          return {
+              text: "Skill Concentration Alert! Your teaching pipeline is full (5+ skills), but your learning goals are limited. Broaden your next learning swap!",
+              cta: "Update Skills",
+              onClick: openModal,
+              icon: <Sparkles size={18} className="mr-2" />
+          };
+      }
+      if (teachCount >= 5 && learnCount >= 5) {
+          return {
+              text: "High-Volume Swapper! You have a robust portfolio for both teaching and learning. Keep engaging!",
+              cta: "Find More Swaps",
+              onClick: handleSearchPage,
+              icon: <TrendingUp size={18} className="mr-2" />
+          };
+      }
+      return null;
+  };
+
   const getAiGrowthTip = () => {
-    if (!strengthChecks.teach) {
-      return { text: "Add skills you can teach. This is the #1 way to get matched!", cta: "Add Skills", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
-    }
-    if (!strengthChecks.learn) {
-      return { text: "What are you curious about? Add skills to learn and find mentors.", cta: "Add Skills", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
-    }
-    if (pendingSessions.length > 0) {
-      return { text: "You have pending session requests! Respond now to build momentum.", cta: "View Sessions", onClick: () => document.getElementById('session-hub')?.scrollIntoView({ behavior: 'smooth' }), icon: <MessageSquare size={18} className="mr-2" /> };
-    }
-    
-    // --- NEW AI MATCH LOGIC ---
-    if (isAiMatchLoading) {
-      return { text: "Your AI Coach is scanning the network for your perfect match...", cta: "Scanning...", disabled: true, icon: <Loader size={18} className="mr-2 animate-spin" /> };
-    }
-    if (aiMatch) {
-      return { text: `AI Match Found! ${aiMatch.name} wants to learn ${aiMatch.wantsToLearn} and can teach you ${aiMatch.canTeach}.`, cta: "View Profile", onClick: () => handleViewProfile(aiMatch.userId), icon: <User size={18} className="mr-2" /> };
-    }
-    
-    // Fallback
-    return { text: "Your profile is set! You're all set to find a swap.", cta: "Find Manually", onClick: handleSearchPage, icon: <Search size={18} className="mr-2" /> };
+      const teachCount = skillsToTeach.filter(s => s.trim()).length;
+      const learnCount = skillsToLearn.filter(s => s.trim()).length;
+
+      // 1. AI Match Override (Highest Priority)
+      if (isAiMatchLoading) {
+        return { text: "Your AI Coach is scanning the network for your perfect match...", cta: "Scanning...", disabled: true, icon: <Loader size={18} className="mr-2 animate-spin" /> };
+      }
+      if (aiMatch) {
+        return { text: `High-Value Swap Alert! ${aiMatch.name} wants to learn ${aiMatch.wantsToLearn} and can teach you ${aiMatch.canTeach}.`, cta: "View Match", onClick: () => handleViewProfile(aiMatch.userId), icon: <User size={18} className="mr-2" /> };
+      }
+      
+      // 2. Profile Completion Priority
+      if (!strengthChecks.teach) {
+        return { text: "The foundation is missing! Define your teaching skills now to unlock matches.", cta: "Add Teach Skills", onClick: openModal, icon: <Edit size={18} className="mr-2" /> };
+      }
+      if (!strengthChecks.learn) {
+        return { text: "You teach, but what do you learn? Define your learning goals to find a mentor.", cta: "Add Learn Goals", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
+      }
+
+      // 3. Skill Gap/Concentration Analysis
+      const concentrationAnalysis = getSkillConcentrationAnalysis(teachCount, learnCount);
+      if (concentrationAnalysis) {
+          return concentrationAnalysis;
+      }
+
+      // 4. Engagement/Maintenance Priority (Fallback)
+      if (pendingSessions.length > 0) {
+        return { text: "Action required! You have pending session requests. Don't keep your matches waiting!", cta: "Review Sessions", onClick: () => document.getElementById('session-hub')?.scrollIntoView({ behavior: 'smooth' }), icon: <MessageSquare size={18} className="mr-2" /> };
+      }
+
+      // Final state: Profile complete, no immediate actions needed. Encourage exploration.
+      return { text: "Profile ready. Explore the network and discover your next great swap!", cta: "Find New Swaps", onClick: handleSearchPage, icon: <Search size={18} className="mr-2" /> };
   };
 
   const aiTip = getAiGrowthTip();
@@ -314,8 +377,19 @@ const ProfilePage = () => {
           >
             {/* Left Side: Profile Info */}
             <div className="lg:col-span-2 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 relative">
-              <div className="absolute top-0 right-0 flex items-center space-x-2">
-                <NotificationBell />
+              <div className="absolute top-6 right-4 flex items-center space-x-2"> {/* top-6 for spacing */}
+                {/* --- FIX: Styled NotificationBell --- */}
+                <div className="p-3 rounded-full bg-black/40 border border-emerald-700/50 text-gray-300 hover:text-emerald-400 transition-colors cursor-pointer shadow-lg">
+                    <NotificationBell className="w-6 h-6" /> 
+                </div>
+                {/* --- END FIX --- */}
+                <button
+                  onClick={handleEditProfile}
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition shadow-lg"
+                  title="Edit Profile"
+                >
+                  <Edit size={20} />
+                </button>
               </div>
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-emerald-700/50 shadow-md flex-shrink-0">
                 <img
@@ -423,7 +497,6 @@ const ProfilePage = () => {
                 <button onClick={() => setActiveTab("completed")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "completed" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Completed ({completedSessions.length})</button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 session-list">
-                {/* *** THIS IS THE FIX: Added closing parenthesis *** */}
                 {(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).length > 0 ? (
                   (activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).map((s) => (
                     <div key={s._id} className="bg-gray-800/60 ring-1 ring-emerald-700/50 rounded-lg p-4 hover:bg-gray-700/70 transition flex flex-col sm:flex-row sm:items-center sm:justify-between">
