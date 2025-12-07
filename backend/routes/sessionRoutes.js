@@ -1,8 +1,17 @@
-// src/routes/sessionRoutes.js
 const express = require("express");
 const router = express.Router();
-const { upload, sendSessionRequest, acceptSessionRequest, getPendingSessions, getAcceptedSessions, getCompletedSessions, getCanceledSessions, sendMessage, getMessages, scheduleSession, markSessionAsCompletedOrCanceled, getUserAverageRating } = require('../controllers/sessionController');
-const {verifyToken} = require('../middlewares/auth');
+const { 
+    sendSessionRequest, 
+    acceptSessionRequest, 
+    getPendingSessions, 
+    getAcceptedSessions, 
+    getCompletedSessions, 
+    getCanceledSessions, 
+    scheduleSession, 
+    markSessionAsCompletedOrCanceled, 
+    getUserAverageRating 
+} = require('../controllers/sessionController'); 
+const {verifyToken} = require('../middlewares/auth'); // Assuming you use verifyToken for auth
 
 // Send session request
 router.post("/request", verifyToken, sendSessionRequest);
@@ -22,14 +31,8 @@ router.get('/completed', verifyToken, getCompletedSessions);
 // Get canceled sessions for the logged-in user
 router.get('/canceled', verifyToken, getCanceledSessions);
 
-// Send message in session
-router.post("/message", verifyToken, upload, sendMessage); // Apply 'upload' middleware here
-
-// Get messages for a session
-router.get("/message/:sessionId", verifyToken, getMessages);
-
 // Schedule a new session (new meeting time)
-router.post("/schedule", verifyToken, scheduleSession); // New route for scheduling
+router.post("/schedule", verifyToken, scheduleSession);
 
 // Mark session as completed or canceled and submit feedback
 router.post("/mark-session", verifyToken, markSessionAsCompletedOrCanceled);

@@ -11,7 +11,7 @@ const Footer = () => {
     { name: "Chat", to: "/chat" },
     { name: "Skill Matching", to: "/skill-matching" },
     { name: "Profile Settings", to: "/profile-settings" },
-    { name: "About Us", to: "/about-us" },
+    // { name: "About Us", to: "/about-us" },
   ];
 
   return (
