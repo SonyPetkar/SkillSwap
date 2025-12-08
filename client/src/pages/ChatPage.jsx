@@ -34,7 +34,7 @@ const AnimatedGradientStyles = () => (
 input[type="date"], input[type="time"] { color-scheme: dark; }
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
- filter: invert(0.8) sepia(1) saturate(5) hue-rotate(120deg); cursor: pointer;
+filter: invert(0.8) sepia(1) saturate(5) hue-rotate(120deg); cursor: pointer;
 }
 /* Style file input button */
 .custom-file-input::-webkit-file-upload-button { visibility: hidden; }
@@ -62,22 +62,22 @@ exit: { opacity: 0 }
 };
 
 // ----------------------------------------------------
-// ➡️ FIX: Robust Time Formatting Helper
+// ➡️ Robust Time Formatting Helper
 // ----------------------------------------------------
 const formatTime = (dateInput) => {
-    if (!dateInput) return 'N/A';
-    try {
-        const date = new Date(dateInput);
-        // Check if the date conversion resulted in a valid date object
-        if (isNaN(date.getTime())) {
-            // Fallback for custom time strings like "16:30" (though usually unnecessary if data is ISO)
-            return String(dateInput);
-        }
-        // Use local time formatting
-        return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-    } catch (e) {
-        return 'N/A';
-    }
+if (!dateInput) return 'N/A';
+try {
+const date = new Date(dateInput);
+// Check if the date conversion resulted in a valid date object
+if (isNaN(date.getTime())) {
+// Fallback for custom time strings like "16:30" (though usually unnecessary if data is ISO)
+return String(dateInput);
+}
+// Use local time formatting
+return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+} catch (e) {
+return 'N/A';
+}
 };
 
 
@@ -106,7 +106,7 @@ const messagesEndRef = useRef(null);
 const loggedInUser = JSON.parse(localStorage.getItem('user')); 
 
 // ----------------------------------------------------
-// ➡️ 1. FETCH CONNECTIONS LIST (FIXED - Fills left panel/auto-selects) 
+// ➡️ 1. FETCH CONNECTIONS LIST & FIX DEFAULT SELECTION
 // ----------------------------------------------------
 const fetchConnections = async () => {
 const token = localStorage.getItem('token');
@@ -123,19 +123,21 @@ headers: { 'x-auth-token': token },
 const fetchedConnections = res.data;
 setConnections(fetchedConnections);
 
-// Auto-select the session based on the URL parameter (sessionId)
+// 🛑 FIX: Only auto-select if a sessionId is provided in the URL.
 if (sessionId) {
 const initialConnection = fetchedConnections.find(conn => conn._id === sessionId);
 if (initialConnection) {
 setSelectedConnection(initialConnection);
-} else if (fetchedConnections.length > 0) {
-setSelectedConnection(fetchedConnections[0]);
-navigate(`/chat/${fetchedConnections[0]._id}`, { replace: true });
+} else {
+// If sessionId is invalid, clear it from the state and URL
+setSelectedConnection(null);
+navigate('/chat', { replace: true }); 
 }
-} else if (fetchedConnections.length > 0) {
-setSelectedConnection(fetchedConnections[0]);
-navigate(`/chat/${fetchedConnections[0]._id}`, { replace: true });
+} else {
+// If no sessionId in URL, ensure selectedConnection is null to show placeholder
+setSelectedConnection(null);
 }
+
 } catch (err) {
 console.error('Error fetching connections:', err);
 toast.error('Failed to load connections list.');
@@ -144,7 +146,7 @@ toast.error('Failed to load connections list.');
 
 
 // ----------------------------------------------------
-// ➡️ 2. SOCKET AND MESSAGE LOGIC (FIXED) 
+// ➡️ 2. SOCKET AND MESSAGE LOGIC (UPDATED)
 // ----------------------------------------------------
 
 // Fetch Connections on load and whenever URL changes
@@ -154,7 +156,8 @@ fetchConnections();
 
 // Setup Chat Socket Connection and Listeners
 useEffect(() => {
-if (!loggedInUser || !sessionId) return;
+// 🛑 Only connect the socket if there is a logged-in user
+if (!loggedInUser) return;
 
 const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const newSocket = io(`${socketProtocol}//localhost:5000/chat`, { 
@@ -165,31 +168,47 @@ withCredentials: true
 setSocket(newSocket);
 
 newSocket.on('connect', () => {
+// Emit join_room ONLY if a sessionId exists
+if (sessionId) {
 newSocket.emit('join_room', sessionId);
+}
 });
 
-// ➡️ FIX: Listener for incoming messages (Ignore echo from self to prevent duplication)
+// Listener for incoming messages
 newSocket.on('receive_message', (incomingMessage) => {
 const loggedInUserId = loggedInUser._id;
 
-// Only add the message to the list if it came from another user
-if (incomingMessage.senderId._id !== loggedInUserId) {
+// Check if the received message belongs to the currently selected chat
+if (selectedConnection && incomingMessage.conversationId === selectedConnection._id) {
+// Only add the message to the list if it came from another user (to avoid socket echo duplication)
+// Note: Optimistic update handles the sender's own message instantly, so we ignore the socket echo for self.
+if (incomingMessage.senderId._id !== loggedInUserId) { 
 setMessages(prevMessages => [...prevMessages, incomingMessage]);
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
 }
+}
+// Handle potential notification/alert for messages for non-selected chats if needed
 });
 
 return () => {
 newSocket.disconnect();
 };
-}, [sessionId, loggedInUser?._id]); 
+}, [loggedInUser?._id]); // Run only on initial mount and user change
 
 
 // Fetch Message History
 useEffect(() => {
 const fetchMessages = async () => {
-if (!selectedConnection) return;
+if (!selectedConnection) {
+setMessages([]); // Clear messages if connection is deselected
+return;
+}
 const token = localStorage.getItem('token');
+
+// 🛑 IMPORTANT: If we are connected, ensure we join the new room when selectedConnection changes
+if (socket && selectedConnection._id) {
+socket.emit('join_room', selectedConnection._id);
+}
 
 try {
 const response = await axios.get(`http://localhost:5000/api/chat/${selectedConnection._id}`, {
@@ -203,13 +222,13 @@ toast.error('Failed to load chat history.');
 };
 
 fetchMessages();
-}, [selectedConnection]); 
+}, [selectedConnection, socket]); // Fetch messages when selectedConnection or socket changes
+
 
 // Scroll to Bottom
 useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]); 
 
 
-// ➡️ FIX: handleSendMessage (Optimistic UI Update)
 const handleSendMessage = async (content, file, link) => {
 if (!socket || !loggedInUser || !selectedConnection || (!content && !file && !link)) return;
 
@@ -218,7 +237,7 @@ let mediaType = null;
 const token = localStorage.getItem('token');
 const conversationId = selectedConnection._id;
 
-// 1. Handle File Upload
+// 1. Handle File Upload (UNCHANGED)
 if (file) {
 const formData = new FormData();
 formData.append('file', file);
@@ -226,10 +245,10 @@ formData.append('sessionId', conversationId);
 
 try {
 const uploadRes = await axios.post('http://localhost:5000/api/chat/upload-media', formData, {
- headers: { 
- 'Content-Type': 'multipart/form-data',
- 'x-auth-token': token
- }
+headers: { 
+'Content-Type': 'multipart/form-data',
+'x-auth-token': token
+}
 });
 
 mediaUrl = uploadRes.data.filePath; 
@@ -251,30 +270,35 @@ mediaType: mediaType,
 link: link 
 };
 
-// ➡️ OPTIMISTIC UI UPDATE: Add message to state immediately 
+// 3. OPTIMISTIC UI UPDATE: Add message to state immediately (UNCHANGED)
 const tempMessage = {
 ...messageData,
 _id: Date.now(), 
 createdAt: new Date().toISOString(), // Use ISO string for reliable date parsing
 senderId: { // ⬅️ CRITICAL: Mimics populated structure
- _id: loggedInUser._id,
- name: loggedInUser.name,
- profilePicture: loggedInUser.profilePicture,
+_id: loggedInUser._id,
+name: loggedInUser.name,
+profilePicture: loggedInUser.profilePicture,
 },
 };
 
 setMessages(prevMessages => [...prevMessages, tempMessage]);
 
-// 3. Send message via Socket.IO
+// 4. Send message via Socket.IO
 socket.emit('send_message', messageData);
 };
 
 
+// ----------------------------------------------------
+// ➡️ 3. HANDLE SELECT CONNECTION (FIXED)
+// ----------------------------------------------------
 const handleSelectConnection = (connection) => {
 setSelectedConnection(connection);
+// This will trigger the useEffect to fetch messages and join the room
 navigate(`/chat/${connection._id}`); 
 setIsMenuOpen(false); 
 };
+
 
 const openScheduleModal = () => { setIsScheduleModalOpen(true); };
 const closeScheduleModal = () => { setIsScheduleModalOpen(false); };
@@ -307,9 +331,9 @@ const getChatUserName = () => {
 return getOtherUserName(selectedConnection);
 };
 const formatDate = (dateString) => { 
-  if (!dateString) return 'N/A';
-  const options = { month: 'short', day: 'numeric', year: 'numeric' };
-  return new Date(dateString).toLocaleDateString(undefined, options);
+if (!dateString) return 'N/A';
+const options = { month: 'short', day: 'numeric', year: 'numeric' };
+return new Date(dateString).toLocaleDateString(undefined, options);
 };
 const getChatUserAvatar = () => { 
 if (!selectedConnection || !loggedInUser) return defaultAvatar;
@@ -362,20 +386,20 @@ const displayTime = formatTime(connection.sessionTime || connection.sessionDate)
 
 return (
 <div
- key={connection._id}
- className={`p-3 rounded-lg cursor-pointer transition-all duration-200 flex items-center gap-3 ${
- isSelected
+key={connection._id}
+className={`p-3 rounded-lg cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+isSelected
 ? 'bg-emerald-600/50 ring-2 ring-emerald-400 shadow-lg' 
 : 'bg-black/20 hover:bg-emerald-900/40 border border-transparent hover:border-emerald-700/50' 
- }`}
- onClick={() => handleSelectConnection(connection)}
+}`}
+onClick={() => handleSelectConnection(connection)}
 >
- <img src={avatarUrl} alt={otherUserName} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-emerald-700" onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }}/>
- <div className="overflow-hidden">
- <p className={`font-semibold truncate ${isSelected ? 'text-white' : 'text-gray-100'}`}>{otherUserName}</p>
- <p className={`text-xs truncate ${isSelected ? 'text-emerald-100' : 'text-emerald-300'}`}>{connection.skill || 'Skill Swap'}</p>
- <p className={`text-xs truncate ${isSelected ? 'text-gray-200' : 'text-gray-400'}`}>{formatDate(connection.sessionDate)} at {displayTime}</p> 
- </div>
+<img src={avatarUrl} alt={otherUserName} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-emerald-700" onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }}/>
+<div className="overflow-hidden">
+<p className={`font-semibold truncate ${isSelected ? 'text-white' : 'text-gray-100'}`}>{otherUserName}</p>
+<p className={`text-xs truncate ${isSelected ? 'text-emerald-100' : 'text-emerald-300'}`}>{connection.skill || 'Skill Swap'}</p>
+<p className={`text-xs truncate ${isSelected ? 'text-gray-200' : 'text-gray-400'}`}>{formatDate(connection.sessionDate)} at {displayTime}</p> 
+</div>
 </div>
 );
 })
@@ -405,14 +429,15 @@ return (
 {/* Action Buttons Container */}
 <div className="flex gap-3">
 
-{/* ➡️ NEW: VIDEO CALL BUTTON */}
+{/* ➡️ FIX: VIDEO CALL BUTTON - Using Jitsi Meet Public Server */}
 <button
 onClick={() => {
- // Placeholder: Use your Video API to generate a meeting URL based on sessionId
- const meetingUrl = `https://your-video-api-link.com/meet/${selectedConnection._id}`; 
- window.open(meetingUrl, '_blank');
+// Generates a unique meeting link using the conversation ID
+const meetingRoomName = selectedConnection._id;
+const meetingUrl = `https://meet.jit.si/${meetingRoomName}`; 
+window.open(meetingUrl, '_blank');
 }}
-title="Start Video Call (Meet)"
+title="Start Video Call, Voice Chat, and Screen Share"
 className="flex items-center gap-1.5 py-1.5 px-3 bg-indigo-600/80 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-200 text-xs font-medium"
 >
 <Video size={16} /> Start Meet
@@ -433,31 +458,31 @@ className="flex items-center gap-1.5 py-1.5 px-3 bg-red-600/80 text-white rounde
 <div className="flex-1 overflow-y-auto p-4 space-y-4 themed-scrollbar">
 {messages.length > 0 ? (
 messages.map((msg, index) => {
- const isSender = msg.senderId?._id === loggedInUser?._id;
- const senderName = msg.senderId?.name || (isSender ? loggedInUser?.name : getChatUserName()) || 'User'; 
+const isSender = msg.senderId?._id === loggedInUser?._id;
+const senderName = msg.senderId?.name || (isSender ? loggedInUser?.name : getChatUserName()) || 'User'; 
 
- return (
- <motion.div
+return (
+<motion.div
 key={msg._id || index}
 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
 className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
- >
+>
 <div className={`max-w-[70%] md:max-w-[60%] p-3 rounded-xl shadow ${ isSender ? 'bg-emerald-700/70 text-white rounded-br-none' : 'bg-gray-700/50 text-gray-100 rounded-bl-none' }`}>
 {!isSender && <p className="text-xs font-semibold text-emerald-300 mb-1">{senderName}</p>}
 <span className="text-sm break-words whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: msg.content || '' }} />
 {msg.mediaUrl && (
- <div className="mt-2 max-w-xs">
- {msg.mediaType === 'image' && <img src={msg.mediaUrl} alt="Uploaded content" className="rounded-lg cursor-pointer object-cover" onClick={() => window.open(msg.mediaUrl, '_blank')} style={{maxHeight: '200px'}}/>}
- {msg.mediaType === 'audio' && <audio controls src={msg.mediaUrl} className="w-full h-10"></audio>}
- {msg.mediaType === 'video' && <video controls src={msg.mediaUrl} className="rounded-lg max-h-[250px]"></video>}
- </div>
+<div className="mt-2 max-w-xs">
+{msg.mediaType === 'image' && <img src={msg.mediaUrl} alt="Uploaded content" className="rounded-lg cursor-pointer object-cover" onClick={() => window.open(msg.mediaUrl, '_blank')} style={{maxHeight: '200px'}}/>}
+{msg.mediaType === 'audio' && <audio controls src={msg.mediaUrl} className="w-full h-10"></audio>}
+{msg.mediaType === 'video' && <video controls src={msg.mediaUrl} className="rounded-lg max-h-[250px]"></video>}
+</div>
 )}
 <p className={`text-xs mt-1.5 ${isSender ? 'text-emerald-100/70 text-right' : 'text-gray-400/80 text-left'}`}>
 {formatTime(msg.createdAt)}
 </p>
 </div>
- </motion.div>
- );
+</motion.div>
+);
 })
 ) : (
 <p className="text-center text-gray-400 pt-16">No messages yet. Start the conversation!</p>
@@ -474,7 +499,7 @@ className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
 <p className="text-xs text-gray-300 italic">"{selectedConnection.feedbackByUser1}"</p>
 </div>
 )}
- {selectedConnection.feedbackByUser2 && (
+{selectedConnection.feedbackByUser2 && (
 <div>
 <h3 className="text-sm font-semibold text-emerald-300">{selectedConnection.userId2?.name || 'User 2'}'s Feedback:</h3>
 <p className="text-xs text-gray-300 italic">"{selectedConnection.feedbackByUser2}"</p>
@@ -493,29 +518,29 @@ Chat is disabled for this session.
 
 
 {/* 🛑 ACTION BUTTONS ROW (COMMENTED OUT AS REQUESTED) 🛑 */}
-  {/*
+{/*
 <div className="flex flex-wrap justify-center items-center gap-3 p-4 border-t border-emerald-700/50 flex-shrink-0">
 {shouldShowScheduleButton && (
 <button onClick={openScheduleModal} className="flex items-center gap-2 py-2 px-4 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition text-sm font-medium">
- <Calendar size={16} /> Reschedule
+<Calendar size={16} /> Reschedule
 </button>
 )}
 {shouldShowMarkButtons && (
 <>
- <button
- onClick={() => {
+<button
+onClick={() => {
 if (!feedback && !isFeedbackGivenByLoggedInUser && selectedConnection?.status !== 'canceled') { 
 openFeedbackModal();
 } else {
 handleMarkSession('completed');
 }
- }}
- className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition text-sm font-medium">
- <CheckCircle size={16}/> Complete
- </button>
- <button onClick={() => handleMarkSession('canceled')} className="flex items-center gap-2 py-2 px-4 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition text-sm font-medium">
- <LucideX size={16}/> Cancel
- </button>
+}}
+className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition text-sm font-medium">
+<CheckCircle size={16}/> Complete
+</button>
+<button onClick={() => handleMarkSession('canceled')} className="flex items-center gap-2 py-2 px-4 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition text-sm font-medium">
+<LucideX size={16}/> Cancel
+</button>
 </>
 )}
 
@@ -525,7 +550,7 @@ handleMarkSession('completed');
 </button>
 )}
 </div>
-  */}
+*/}
 
 </>
 ) : (
@@ -589,11 +614,11 @@ Request Reschedule
 <div>
 <label className="text-sm font-medium text-gray-300">Reason:</label>
 <select value={reason} onChange={(e) => setReason(e.target.value)} required className="mt-1 w-full p-3 border rounded-lg bg-black/30 border-red-700/50 text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500 text-sm appearance-none">
- <option value="">Select Reason</option>
- <option value="Spam">Spam</option>
- <option value="Harassment">Harassment</option>
- <option value="Inappropriate Behavior">Inappropriate Behavior</option>
- <option value="Other">Other</option>
+<option value="">Select Reason</option>
+<option value="Spam">Spam</option>
+<option value="Harassment">Harassment</option>
+<option value="Inappropriate Behavior">Inappropriate Behavior</option>
+<option value="Other">Other</option>
 </select>
 </div>
 <div>

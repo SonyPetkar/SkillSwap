@@ -1,12 +1,12 @@
-const express    = require('express');
-const mongoose   = require('mongoose');
-const cors       = require('cors');
-const dotenv     = require('dotenv');
-const http       = require('http');
-const socketIo   = require('socket.io');
-const path       = require('path');
+const express  = require('express');
+const mongoose  = require('mongoose');
+const cors    = require('cors');
+const dotenv   = require('dotenv');
+const http    = require('http');
+const socketIo  = require('socket.io');
+const path    = require('path');
 const bcrypt = require('bcryptjs');
-const User   = require('./models/User');
+const User  = require('./models/User');
 const bodyParser = require('body-parser');
 const matchmaking = require('./routes/matchmaking'); 
 
@@ -16,7 +16,7 @@ const userRoutes = require('./routes/userRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const adminRoutes = require('./routes/adminRoutes');  
+const adminRoutes = require('./routes/adminRoutes'); 
 const reportRoutes = require('./routes/reportRoutes'); 
 
 // ➡️ CHAT MODULE IMPORTS
@@ -31,23 +31,23 @@ const { setSocket: setNotificationSocketIO } = require('./controllers/notificati
 // dotenv configuration must be first
 dotenv.config();
 
-const app    = express(); 
+const app  = express(); 
 const server = http.createServer(app);
 
 // ✅ Create Socket.IO instance ONCE
-const io     = socketIo(server, {
-  cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type, x-auth-token'],
-    credentials: true,
-  },
+const io   = socketIo(server, {
+ cors: {
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type, x-auth-token'],
+  credentials: true,
+ },
 });
 
 // ✅ Create namespaces from single instance
-const sessionSocket      = io.of('/sessions');
+const sessionSocket   = io.of('/sessions');
 const notificationSocket = io.of('/notifications');
-const chatSocket         = io.of('/chat'); 
+const chatSocket     = io.of('/chat'); 
 
 // Pass the socket instances to controllers
 setSessionSocketIO(sessionSocket);
@@ -56,7 +56,7 @@ setChatSocketIO(chatSocket);
 
 
 // ─── MIDDLEWARE ───────────────────────────────────────────────────
-app.use(express.json());  
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true })); 
 app.use(cors());
 
@@ -67,13 +67,13 @@ app.use('/uploads/message-uploads', express.static(path.join(__dirname, 'uploads
 
 // MongoDB connection (UNCHANGED)
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(async () => { 
-    console.log('Connected to MongoDB');
-    const { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_PIC_URL } = process.env;
-    // ... existing admin seeding logic ...
-  })
-  .catch(err => console.error('Error connecting to MongoDB:', err));
+ .connect(process.env.MONGO_URI)
+ .then(async () => { 
+  console.log('Connected to MongoDB');
+  const { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_PIC_URL } = process.env;
+  // ... existing admin seeding logic ...
+ })
+ .catch(err => console.error('Error connecting to MongoDB:', err));
 
 // ─── ROUTES ────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -82,7 +82,7 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/matchmaking', matchmaking); 
-app.use('/api/admin', adminRoutes);  
+app.use('/api/admin', adminRoutes); 
 app.use('/api/reports', reportRoutes); 
 app.use('/api/chat', chatRoutes); // ⬅️ CHAT ROUTES MOUNTED
 
@@ -92,11 +92,11 @@ notificationSocket.on('connection', (socket) => { console.log('A user connected 
 
 // Default route
 app.get('/', (req, res) => {
-  res.send('SkillSwap API is running');
+ res.send('SkillSwap API is running');
 });
-  
+ 
 // Start the server
 const port = process.env.PORT || 5000;
 server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+ console.log(`Server running on port ${port}`);
 });
