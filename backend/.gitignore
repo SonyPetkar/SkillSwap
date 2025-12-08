@@ -21,3 +21,6 @@ Thumbs.db
 
 # Optional: TypeScript or JavaScript transpiler output
 *.tsbuildinfo
+
+credentials/
+google-service-account-key.json
