@@ -2,8 +2,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  notifications: [], // Store notifications
-  unreadCount: 0, // Count unread notifications
+  notifications: [],
+  unreadCount: 0,
 };
 
 const notificationSlice = createSlice({
@@ -11,20 +11,26 @@ const notificationSlice = createSlice({
   initialState,
   reducers: {
     setNotifications: (state, action) => {
-      const newNotifications = action.payload;
-      state.notifications = newNotifications;  // Update with new notifications from the backend
-      state.unreadCount = state.notifications.filter((notif) => !notif.isRead).length;  // Update unread count
+      state.notifications = Array.isArray(action.payload) ? action.payload : [];
+      state.unreadCount = state.notifications.filter(n => n && !n.isRead).length;
     },
+
+    addNotification: (state, action) => {
+      state.notifications.unshift(action.payload);
+      state.unreadCount += 1;
+    },
+
     markAsRead: (state, action) => {
-      const notificationId = action.payload;
-      const notification = state.notifications.find((notif) => notif._id === notificationId);
-      if (notification) {
-        notification.isRead = true;
-        state.unreadCount = state.notifications.filter((notif) => !notif.isRead).length;  // Update unread count
+      const notif = state.notifications.find(n => n._id === action.payload);
+      if (notif && !notif.isRead) {
+        notif.isRead = true;
+        state.unreadCount -= 1;
       }
     },
   },
 });
 
-export const { setNotifications, markAsRead } = notificationSlice.actions;
+export const { setNotifications, addNotification, markAsRead } =
+  notificationSlice.actions;
+
 export default notificationSlice.reducer;

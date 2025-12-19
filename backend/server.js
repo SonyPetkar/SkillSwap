@@ -5,14 +5,9 @@ const dotenv   = require('dotenv');
 const http    = require('http');
 const socketIo  = require('socket.io');
 const path    = require('path');
-const bcrypt = require('bcryptjs'); // Assuming this is needed for setup/seeding
-const User  = require('./models/User'); // Assuming this is needed for setup/seeding
-
-// 1. Load environment variables FIRST (Crucial for all modules below)
+const bcrypt = require('bcryptjs'); 
+const User  = require('./models/User'); 
 dotenv.config();
-
-// 2. Import all routes and controllers AFTER dotenv.config()
-// This prevents modules that rely on process.env (like GEMINI_API_KEY) from failing during load time.
 const matchmaking = require('./routes/matchmaking'); 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -32,8 +27,6 @@ const { setSocket: setNotificationSocketIO } = require('./controllers/notificati
 
 const app  = express(); 
 const server = http.createServer(app);
-
-// ✅ Create Socket.IO instance ONCE
 const io   = socketIo(server, {
  cors: {
   origin: 'http://localhost:5173',

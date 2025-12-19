@@ -67,38 +67,23 @@ const totalSkills = teachSkills.length + learnSkills.length;
 let level = 'Novice';
 let color = 'text-gray-500';
 
-if (totalSkills >= 1) {
-level = 'Explorer';
-color = 'text-yellow-400';
-}
-if (totalSkills >= 5) {
-level = 'Collaborator';
-color = 'text-cyan-400';
-}
-if (totalSkills >= 10) {
-level = 'Master Swapper';
-color = 'text-emerald-400';
-}
+if (totalSkills >= 1) { level = 'Explorer'; color = 'text-yellow-400'; }
+if (totalSkills >= 5) { level = 'Collaborator'; color = 'text-cyan-400'; }
+if (totalSkills >= 10) { level = 'Master Swapper'; color = 'text-emerald-400'; }
 
 return (
 <div className="p-4 bg-black/30 rounded-lg border border-teal-500/50 shadow-lg mt-6 text-center">
 <TrendingUp size={24} className={`mx-auto mb-2 ${color}`} />
 <h4 className="text-lg font-bold text-white">Current Swap Rank:</h4>
-<p className={`text-2xl font-extrabold ${color} transition-colors duration-300`}>
-{level}
-</p>
+<p className={`text-2xl font-extrabold ${color} transition-colors duration-300`}>{level}</p>
 <p className="text-sm text-gray-400 mt-1">Total skills tracked: {totalSkills}</p>
 </div>
 );
 };
-// --- End Skill Rank Visualization ---
 
-
-// 🛠️ NEW COMPONENT: AI Match Profile Card (UPDATED with Request and Next Match Button)
+// --- AI Match Profile Card ---
 const AiMatchCard = ({ match, handleViewProfile, handleSendRequest, fetchAiMatch }) => {
     if (!match) return null;
-
-    // Determine avatar URL
     const avatarUrl = match.profilePicture 
         ? `http://localhost:5000/uploads/profile-pictures/${match.profilePicture}` 
         : defaultAvatar;
@@ -111,59 +96,23 @@ const AiMatchCard = ({ match, handleViewProfile, handleSendRequest, fetchAiMatch
             className="w-full bg-emerald-900/40 border border-emerald-700 rounded-xl p-4 flex flex-col items-center text-center shadow-lg"
         >
             <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-500 mb-3">
-                <img 
-                    src={avatarUrl} 
-                    alt={match.name} 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }}
-                />
+                <img src={avatarUrl} alt={match.name} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }} />
             </div>
             <p className="text-xl font-bold text-white mb-2">{match.name}</p>
-            
             <div className="w-full text-left space-y-2 mb-4 text-sm">
-                <p className="text-gray-300">
-                    <span className="font-semibold text-teal-300">Wants to Learn:</span> **{match.wantsToLearn || 'N/A'}**
-                </p>
-                <p className="text-gray-300">
-                    <span className="font-semibold text-emerald-300">Can Teach You:</span> **{match.canTeach || 'N/A'}**
-                </p>
+                <p className="text-gray-300"><span className="font-semibold text-teal-300">Wants to Learn:</span> **{match.wantsToLearn || 'N/A'}**</p>
+                <p className="text-gray-300"><span className="font-semibold text-emerald-300">Can Teach You:</span> **{match.canTeach || 'N/A'}**</p>
             </div>
-
             <div className="flex w-full space-x-2 mb-3">
-                <button
-                    onClick={() => handleViewProfile(match.userId)}
-                    className="w-1/2 flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium active:scale-95"
-                    title="View full profile details"
-                >
-                    <User size={16} className="mr-2" />
-                    View Profile
-                </button>
-                <button
-                    onClick={() => handleSendRequest(match.userId, match.canTeach, match.wantsToLearn)}
-                    className="w-1/2 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium active:scale-95"
-                    title={`Send a swap request to ${match.name}`}
-                >
-                    <Plus size={16} className="mr-2" />
-                    Swap Request
-                </button>
+                <button onClick={() => handleViewProfile(match.userId)} className="w-1/2 flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium active:scale-95"><User size={16} className="mr-2" /> View Profile</button>
+                <button onClick={() => handleSendRequest(match.userId, match.canTeach, match.wantsToLearn)} className="w-1/2 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium active:scale-95"><Plus size={16} className="mr-2" /> Swap Request</button>
             </div>
-            <button
-                // 🚀 RESTORED: Find Next Match option
-                onClick={() => { fetchAiMatch(true) }} 
-                className="w-full flex items-center justify-center py-1 text-sm text-gray-400 hover:text-white transition rounded-lg bg-black/20 hover:bg-black/40 border border-transparent hover:border-emerald-700/50"
-            >
-                <Search size={16} className="mr-1.5" />
-                Find Next Match
-            </button>
+            <button onClick={() => fetchAiMatch(true)} className="w-full flex items-center justify-center py-1 text-sm text-gray-400 hover:text-white transition rounded-lg bg-black/20 hover:bg-black/40 border border-transparent hover:border-emerald-700/50"><Search size={16} className="mr-1.5" /> Find Next Member</button>
         </motion.div>
     );
 }
-// ---------------------------------------------
-
 
 const ProfilePage = () => {
-console.log("ProfilePage is rendering now.");
-// --- STATE ---
 const [user, setUser] = useState(null);
 const [skillsToTeach, setSkillsToTeach] = useState([]);
 const [skillsToLearn, setSkillsToLearn] = useState([]);
@@ -179,703 +128,293 @@ const [activeTab, setActiveTab] = useState("pending");
 const [isEditingStatus, setIsEditingStatus] = useState(false);
 const [statusInput, setStatusInput] = useState("");
 const [isAiLoading, setIsAiLoading] = useState(false);
-
-const [notificationSocket, setNotificationSocket] = useState(null); 
-
-// --- NEW AI MATCHMAKING STATE ---
-// aiMatch state can be null, object (match found), 'no-match-found', or 'error'
 const [aiMatch, setAiMatch] = useState(null); 
 const [isAiMatchLoading, setIsAiMatchLoading] = useState(false);
 
 const dispatch = useDispatch();
+const formatDate = (iso) => new Date(iso).toLocaleDateString();
+const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-// --- LOGIC ---
-const formatDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-const formatTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-
-// 1. Initial User Profile and Notification Fetch (Runs on Mount)
 useEffect(() => {
-const fetchUserProfile = async () => {
-const token = localStorage.getItem("token");
-if (!token) return;
-try {
-const userRes = await axios.get("http://localhost:5000/api/users/profile", { headers: { "x-auth-token": token } });
-const userData = userRes.data;
-
-setUser(userData);
-setSkillsToTeach(userData.skillsToTeach || []);
-setSkillsToLearn(userData.skillsToLearn || []);
-setStatusInput(userData.status || "");
-
-// Fetch initial notifications
-const notifRes = await axios.get(`http://localhost:5000/api/notifications/${userData._id}`, { headers: { "x-auth-token": token } });
-dispatch(setNotifications(notifRes.data));
-} catch { setError("Failed to load profile or notifications."); }
-};
-fetchUserProfile();
+    const fetchUserProfile = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        try {
+            const userRes = await axios.get("http://localhost:5000/api/users/profile", { headers: { "x-auth-token": token } });
+            setUser(userRes.data);
+            setSkillsToTeach(userRes.data.skillsToTeach || []);
+            setSkillsToLearn(userRes.data.skillsToLearn || []);
+            setStatusInput(userRes.data.status || "");
+            const notifRes = await axios.get(`http://localhost:5000/api/notifications/${userRes.data._id}`, { headers: { "x-auth-token": token } });
+            if (Array.isArray(notifRes.data)) { dispatch(setNotifications(notifRes.data)); }
+        } catch { setError("Failed to load profile."); }
+    };
+    fetchUserProfile();
 }, [dispatch]);
 
-
-// ➡️ 2. REAL-TIME NOTIFICATION SOCKET SETUP (FIXED BLOCK)
 useEffect(() => {
-if (!user || !user._id) return; // Wait for user data
-
-const token = localStorage.getItem("token");
-if (!token) return;
-
-// Connect to the dedicated notifications namespace
-const newSocket = io('http://localhost:5000/notifications', { 
-query: { userId: user._id }, // Pass userId for server-side routing
-withCredentials: true 
-});
-
-// Listen for incoming notifications from the server
-newSocket.on('new_notification', (notification) => {
-// Show toast notification
-toast.info(notification.message, {
-position: "bottom-right",
-autoClose: 5000,
-hideProgressBar: false,
-closeOnClick: true,
-pauseOnHover: true,
-draggable: true,
-progress: undefined,
-});
-
-// Fetch ALL notifications again to update the Redux store/bell component
-axios.get(`http://localhost:5000/api/notifications/${user._id}`, { headers: { "x-auth-token": token } })
-.then(res => {
-dispatch(setNotifications(res.data));
-})
-.catch(err => console.error("Error updating notifications after real-time event:", err));
-});
-
-// Listen for specific session-related notifications (e.g., meeting scheduled)
-newSocket.on('newMeetingScheduled', (data) => {
-toast.success(data.message);
-// Also refresh the sessions list to reflect the new state
-fetchSessions();
-});
-
-
-setNotificationSocket(newSocket); // ⬅️ This line now works!
-
-return () => {
-newSocket.disconnect(); // Clean up on component unmount
-};
-// Dependency array ensures hook runs once user data is available
+    if (!user?._id) return;
+    const token = localStorage.getItem("token");
+    const newSocket = io('http://localhost:5000/notifications', { query: { userId: user._id }, withCredentials: true });
+    newSocket.on('new_notification', (notification) => {
+        toast.info(notification.message);
+        axios.get(`http://localhost:5000/api/notifications/${user._id}`, { headers: { "x-auth-token": token } })
+        .then(res => { if (Array.isArray(res.data)) dispatch(setNotifications(res.data)); });
+    });
+    newSocket.on('newMeetingScheduled', (data) => { toast.success(data.message); fetchSessions(); });
+    return () => newSocket.disconnect();
 }, [user?._id, dispatch]); 
 
-
-// 3. Session Fetch (Runs on Mount and After newMeetingScheduled)
 const fetchSessions = async () => {
-const token = localStorage.getItem("token");
-if (!token) return;
-try {
-const [p, a, co] = await Promise.all([
-axios.get("http://localhost:5000/api/sessions/pending", { headers: { "x-auth-token": token } }),
-axios.get("http://localhost:5000/api/sessions/accepted", { headers: { "x-auth-token": token } }),
-axios.get("http://localhost:5000/api/sessions/completed", { headers: { "x-auth-token": token } }),
-]);
-const now = new Date();
-setPendingSessions(p.data.filter((session) => new Date(session.sessionDate) >= now));
-setAcceptedSessions(a.data);
-setCompletedSessions(co.data);
-} catch { setError("Error fetching sessions"); }
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+        const [p, a, co] = await Promise.all([
+            axios.get("http://localhost:5000/api/sessions/pending", { headers: { "x-auth-token": token } }),
+            axios.get("http://localhost:5000/api/sessions/accepted", { headers: { "x-auth-token": token } }),
+            axios.get("http://localhost:5000/api/sessions/completed", { headers: { "x-auth-token": token } }),
+        ]);
+        setPendingSessions(p.data);
+        setAcceptedSessions(a.data);
+        setCompletedSessions(co.data);
+    } catch { setError("Error fetching sessions"); }
 };
-useEffect(() => {
-if (user) { // Only fetch sessions once user is loaded
-fetchSessions();
-}
-}, [user]);
 
+useEffect(() => { if (user) fetchSessions(); }, [user]);
 
-// --- PROFILE STRENGTH CALCULATION (Moved up to be available for hooks) ---
 let profileStrength = 20;
 const strengthChecks = {
-status: !!user?.status,
-socials: !!(user?.socials && (user.socials.linkedin || user.socials.github || user.socials.twitter)),
-teach: skillsToTeach.length > 0 && skillsToTeach[0] !== '',
-learn: skillsToLearn.length > 0 && skillsToLearn[0] !== '',
+    status: !!user?.status,
+    socials: !!(user?.socials && (user.socials.linkedin || user.socials.github || user.socials.twitter)),
+    teach: skillsToTeach.length > 0 && skillsToTeach[0] !== '',
+    learn: skillsToLearn.length > 0 && skillsToLearn[0] !== '',
 };
 if (strengthChecks.status) profileStrength += 20;
 if (strengthChecks.socials) profileStrength += 20;
 if (strengthChecks.teach) profileStrength += 20;
 if (strengthChecks.learn) profileStrength += 20;
 
-// --- 🛠️ PROACTIVE AI MATCHMAKING FUNCTION ---
 const fetchAiMatch = async (forceScan = false) => {
-// Safety checks
-if (!user || !user._id) return; 
-
-// If already run once and not forcing a scan, exit (prevents unnecessary initial calls)
-if (aiMatch !== null && !forceScan) return;
-
-setIsAiMatchLoading(true);
-const token = localStorage.getItem("token");
-if (!token) {
-setIsAiMatchLoading(false);
-return;
-}
-
-try {
-// *** REAL BACKEND CALL ***
-const { data } = await axios.get(
-`http://localhost:5000/api/matchmaking/proactive-match`, 
-{ 
-headers: { "x-auth-token": token },
-}
-);
-
-// Backend returns {} if no match is found, or { userId, name, ... } if found.
-if (data && typeof data === 'object' && data.userId) {
-setAiMatch(data);
-} else {
-setAiMatch('no-match-found'); 
-}
-
-} catch (error) {
-console.error("AI Matchmaking failed:", error);
-setAiMatch('error'); 
-toast.error("AI Coach connection failed. Please check your server and credentials.");
-}
-setIsAiMatchLoading(false);
+    if (!user?._id || (aiMatch !== null && !forceScan)) return;
+    setIsAiMatchLoading(true);
+    const token = localStorage.getItem("token");
+    try {
+        const { data } = await axios.get(`http://localhost:5000/api/matchmaking/proactive-match`, { headers: { "x-auth-token": token } });
+        if (data?.userId) setAiMatch(data);
+        else setAiMatch('no-match-found');
+    } catch { setAiMatch('error'); }
+    finally { setIsAiMatchLoading(false); }
 };
 
-// *** HOOK FIX: Only fetch if state is strictly null (initial state) ***
 useEffect(() => {
-// 1. Guard against incomplete profile data
-if (!user || !strengthChecks.teach || !strengthChecks.learn) {
-return;
-}
+    if (user && strengthChecks.teach && strengthChecks.learn && aiMatch === null) fetchAiMatch();
+}, [user, strengthChecks.teach, strengthChecks.learn, aiMatch]);
 
-// 2. Critical loop guard: Only call fetchAiMatch if the result state is still the initial 'null'.
-if (aiMatch === null && !isAiMatchLoading) {
-fetchAiMatch();
-}
-}, [user, strengthChecks.teach, strengthChecks.learn, aiMatch, isAiMatchLoading]);
+// --- ACTION HANDLERS ---
 
+const handleMarkAsDone = async (id) => {
+    const token = localStorage.getItem("token");
+    const sessionToMove = acceptedSessions.find(s => s._id === id);
+    if (!sessionToMove) return;
 
-// --- MODAL & NAVIGATION HANDLERS ---
-const openModal = () => {
-setModalTeach(skillsToTeach.join(", "));
-setModalLearn(skillsToLearn.join(", "));
-setError("");
-setSuccess("");
-setIsModalOpen(true);
+    // 🚀 THE FIX: Clear from local 'Accepted' list IMMEDIATELY to prevent dual entries
+    setAcceptedSessions(prev => prev.filter(s => s._id !== id));
+
+    try {
+        await axios.post("http://localhost:5000/api/sessions/mark-session", { 
+            sessionId: id, status: 'completed', rating: 5, feedback: "Verified" 
+        }, { headers: { "x-auth-token": token } });
+
+        toast.success("Session completed!");
+        // Change tab to completed so user sees it moved
+        setActiveTab("completed");
+        await fetchSessions(); // Final sync with DB
+        
+    } catch (err) {
+        toast.error("Failed to mark done.");
+        fetchSessions(); // Restore on error
+    }
 };
+
+const handleSendRequest = async (receiverId, skillToTeach, skillToLearn) => {
+    const token = localStorage.getItem("token");
+    if (!token) return; 
+
+    // 🚀 FIX: Payload matches backend controller requirements (userId2, skill, date, time)
+    const swapPayload = {
+        userId2: receiverId,
+        skill: skillToTeach,
+        sessionDate: new Date(),
+        sessionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    try {
+        await axios.post("http://localhost:5000/api/sessions/request", swapPayload, {
+            headers: { "x-auth-token": token },
+        });
+        toast.success(`Swap request sent!`);
+        setAiMatch(null); 
+        fetchSessions(); 
+    } catch (err) { setError("Failed to send request."); }
+};
+
+const handleAccept = async (id) => {
+    const token = localStorage.getItem("token");
+    try {
+        await axios.post("http://localhost:5000/api/sessions/accept", { sessionId: id }, { headers: { "x-auth-token": token } });
+        setPendingSessions(ps => ps.filter(s => s._id !== id));
+        fetchSessions();
+        toast.success("Accepted!");
+    } catch { toast.error("Failed."); }
+};
+
+const handleUpdateSkills = async () => {
+    const token = localStorage.getItem("token");
+    
+    // 🚀 VALIDATION: Check if either field is empty or just spaces
+    if (!modalTeach.trim() || !modalLearn.trim()) {
+        toast.error("Skills cannot be empty! Please provide both teaching and learning skills.");
+        return;
+    }
+
+    try {
+        const { data } = await axios.put("http://localhost:5000/api/users/profile", { 
+            ...user, 
+            skillsToTeach: modalTeach.split(",").map(s => s.trim()).filter(s => s), 
+            skillsToLearn: modalLearn.split(",").map(s => s.trim()).filter(s => s) 
+        }, { headers: { "x-auth-token": token } });
+        
+        setUser(data); 
+        setSkillsToTeach(data.skillsToTeach); 
+        setSkillsToLearn(data.skillsToLearn); 
+        setIsModalOpen(false); 
+        toast.success("Updated!");
+    } catch { setError("Failed update."); }
+};
+
+const handleStatusUpdate = async () => {
+    const token = localStorage.getItem("token");
+    try {
+        const { data } = await axios.put("http://localhost:5000/api/users/profile", { ...user, status: statusInput }, { headers: { "x-auth-token": token } });
+        setUser(data); setIsEditingStatus(false); toast.success("Status set!");
+    } catch { setError("Status failed."); }
+};
+
+const handleViewProfile = (id) => { window.location.href = `/user/${id}`; };
+const openModal = () => { setModalTeach(skillsToTeach.join(", ")); setModalLearn(skillsToLearn.join(", ")); setIsModalOpen(true); };
 const closeModal = () => setIsModalOpen(false);
 const handleStartChat = (id) => (window.location.href = `/chat/${id}`);
 const handleEditProfile = () => (window.location.href = "/profile-settings");
 const handleSearchPage = () => (window.location.href = "/search");
 
-// 🛠️ FIX: Profile Navigation - Uses template literal for correct routing
-const handleViewProfile = (id) => {
-    // This is the correct method to navigate to a user profile page
-    window.location.href = `/user/${id}`; 
-};
-
-// --- DATA UPDATE HANDLERS (Unchanged) ---
-const handleUpdateSkills = async () => {
-const token = localStorage.getItem("token");
-const skillsToTeachArray = modalTeach.split(",").map((s) => s.trim()).filter(s => s);
-const skillsToLearnArray = modalLearn.split(",").map((s) => s.trim()).filter(s => s);
-
-try {
-const { data } = await axios.put("http://localhost:5000/api/users/profile", {
-...user,
-skillsToTeach: skillsToTeachArray,
-skillsToLearn: skillsToLearnArray,
-}, { headers: { "x-auth-token": token } });
-
-setUser(data);
-setSkillsToTeach(data.skillsToTeach);
-setSkillsToLearn(data.skillsToLearn);
-setSuccess("Skills updated successfully!");
-closeModal();
-} catch { setError("Failed to update skills."); }
-};
-
-const handleStatusUpdate = async () => {
-const token = localStorage.getItem("token");
-try {
-const { data } = await axios.put("http://localhost:5000/api/users/profile", {
-...user,
-status: statusInput,
-}, { headers: { "x-auth-token": token } });
-
-setUser(data);
-setStatusInput(data.status);
-setSuccess("Status updated!");
-setIsEditingStatus(false);
-} catch { setError("Failed to update status."); }
-};
-
-const handleAccept = async (id) => {
-const token = localStorage.getItem("token");
-try {
-const res = await axios.post("http://localhost:5000/api/sessions/accept", { sessionId: id }, { headers: { "x-auth-token": token } });
-setPendingSessions((ps) => ps.filter((s) => s._id !== id));
-setAcceptedSessions((as) => [...as, res.data.session]);
-setSuccess("Session accepted");
-} catch { setError("Failed to accept session."); }
-};
-
-const getSessionPartnerName = (session) => {
-const partner = session.userId1?._id === user?._id ? session.userId2 : session.userId1;
-return partner?.name ?? "Unknown User";
-};
-
-// --- 🚀 NEW: Function to send swap request and trigger notification ---
-const handleSendRequest = async (receiverId, skillToTeach, skillToLearn) => {
- const token = localStorage.getItem("token");
- if (!token) return; 
-
- const swapDetails = {
-receiverId,
-skillToTeach, 
-skillToLearn, 
- };
-
- try {
-// This hits your backend route /api/matches/request (assuming matchRoutes handles it)
-await axios.post("http://localhost:5000/api/matches/request", swapDetails, {
- headers: { "x-auth-token": token },
-});
-
-setSuccess(`Swap request sent successfully to ${aiMatch.name}! Check your pending sessions tab for updates.`);
-
-// Remove the card immediately after sending the request to prevent spamming/confusion
-setAiMatch(null); 
-
-// Refresh sessions list to see if the request shows up in pending (if implemented that way)
-fetchSessions(); 
-
- } catch (err) {
-console.error("Error sending swap request:", err);
-setError("Failed to send swap request. Please ensure the user has a matching profile.");
- }
-};
-
-
-// --- MODAL AI SUGGESTER (MOCK) ---
 const handleAiSuggest = async () => {
-if (!modalTeach) {
-setError("Please add your 'Skills to Teach' first so the AI can give good suggestions.");
-return;
-}
-setError("");
-setIsAiLoading(true);
-try {
-// --- MOCK API CALL ---
-await new Promise(resolve => setTimeout(resolve, 1500));
-const suggestions = "Next.js, TypeScript, GraphQL, Node.js, UI/UX Principles";
-setModalLearn(suggestions);
-} catch (err) {
-setError("AI Suggestion failed. Please try again.");
-}
-setIsAiLoading(false);
-};
-
-// --- ENHANCED AI GROWTH TIP LOGIC ---
-const getSkillConcentrationAnalysis = (teachCount, learnCount) => {
-if (teachCount >= 5 && learnCount <= 1) {
-return {
-text: "Skill Concentration Alert! Your teaching pipeline is full (5+ skills), but your learning goals are limited. Broaden your next learning swap!",
-cta: "Update Skills",
-onClick: openModal,
-icon: <Sparkles size={18} className="mr-2" />
-};
-}
-if (teachCount >= 5 && learnCount >= 5) {
-return {
-text: "High-Volume Swapper! You have a robust portfolio for both teaching and learning. Keep engaging!",
-cta: "Find More Swaps",
-onClick: handleSearchPage,
-icon: <TrendingUp size={18} className="mr-2" />
-};
-}
-return null;
+    if (!modalTeach) { setError("Add teaching skills first."); return; }
+    setIsAiLoading(true);
+    try { await new Promise(r => setTimeout(r, 1500)); setModalLearn("React, Node, MongoDB"); } finally { setIsAiLoading(false); }
 };
 
 const getAiGrowthTip = () => {
-const teachCount = skillsToTeach.filter(s => s.trim()).length;
-const learnCount = skillsToLearn.filter(s => s.trim()).length;
-
-// 1. AI Match Override (Highest Priority)
-if (isAiMatchLoading) {
-return { type: 'loading', text: "Your AI Coach is scanning the network for your perfect match...", cta: "Scanning...", disabled: true, icon: <Loader size={18} className="mr-2 animate-spin" /> };
-}
-
-// Check if aiMatch is a VALID OBJECT (meaning a match was found)
-if (aiMatch && typeof aiMatch === 'object' && aiMatch.userId) {
-// 🛠️ Returns the match object to be rendered as a card
-return { type: 'match', matchData: aiMatch };
-}
-
-// 1.5. AI Match Failed/No Match Found Priority (New Retry Tip)
-if (aiMatch === 'no-match-found' || aiMatch === 'error') {
-return { 
-type: 'retry',
-text: "The network scan finished, but we found no immediate reciprocal matches. Try refreshing or update your skills!", 
-cta: "Scan Again", 
-// Calls fetchAiMatch with true to force a new scan
-onClick: () => { fetchAiMatch(true); }, 
-icon: <Search size={18} className="mr-2" /> 
-};
-}
-
-// 2. Profile Completion Priority
-if (!strengthChecks.teach) {
-return { type: 'tip', text: "The foundation is missing! Define your teaching skills now to unlock matches.", cta: "Add Teach Skills", onClick: openModal, icon: <Edit size={18} className="mr-2" /> };
-}
-if (!strengthChecks.learn) {
-return { type: 'tip', text: "You teach, but what do you learn? Define your learning goals to find a mentor.", cta: "Add Learn Goals", onClick: openModal, icon: <Plus size={18} className="mr-2" /> };
-}
-
-// 3. Skill Gap/Concentration Analysis
-const concentrationAnalysis = getSkillConcentrationAnalysis(teachCount, learnCount);
-if (concentrationAnalysis) {
-return { type: 'tip', ...concentrationAnalysis };
-}
-
-// 4. Engagement/Maintenance Priority (Fallback)
-if (pendingSessions.length > 0) {
-return { type: 'tip', text: "Action required! You have pending session requests. Don't keep your matches waiting!", cta: "Review Sessions", onClick: () => document.getElementById('session-hub')?.scrollIntoView({ behavior: 'smooth' }), icon: <MessageSquare size={18} className="mr-2" /> };
-}
-
-// Final state: Profile complete, no immediate actions needed. Encourage exploration.
-return { type: 'tip', text: "Profile ready. Explore the network and discover your next great swap!", cta: "Find New Swaps", onClick: handleSearchPage, icon: <Search size={18} className="mr-2" /> };
+    if (isAiMatchLoading) return { type: 'loading', text: "Finding platform matches...", icon: <Loader className="animate-spin mr-2"/> };
+    if (aiMatch && typeof aiMatch === 'object' && aiMatch.userId) return { type: 'match', matchData: aiMatch };
+    if (!strengthChecks.teach) return { type: 'tip', text: "Add skills you can teach.", cta: "Add Skills", onClick: openModal, icon: <Edit size={18} className="mr-2"/> };
+    return { type: 'tip', text: "Explore the network for your next swap!", cta: "Browse Swaps", onClick: handleSearchPage, icon: <Search size={18} className="mr-2"/> };
 };
 
-// *** CRITICAL: Calculates the Tip before the render starts ***
 const aiTip = getAiGrowthTip();
 
-// --- LOADING STATE (This is now safe to use) ---
-if (!user) {
-return (
-<div className="flex items-center justify-center min-h-screen w-full px-4 py-12 bg-gray-900 text-gray-200">
-<Loader size={24} className="animate-spin mr-3 text-emerald-500" /> Loading your profile...
-</div>
-);
-}
+if (!user) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white"><Loader className="animate-spin mr-2"/> Loading...</div>;
 
-// --- RENDER ---
 return (
-<div className="min-h-screen relative w-full bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 animate-gradient-shift overflow-x-hidden font-['Inter',_sans-serif]">
+<div className="min-h-screen relative w-full bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 animate-gradient-shift font-['Inter']">
 <AnimatedGradientStyles />
-<div className="relative z-10">
 <Navbar />
-<motion.div
-className="max-w-7xl mx-auto p-4 md:p-8"
-variants={containerVariants}
-initial="hidden"
-animate="visible"
->
-{/* --- NOTIFICATION BANNERS --- */}
-{success && (
-<motion.div variants={itemVariants} className="bg-green-900/50 border border-green-700 text-green-300 p-3 rounded-lg mb-6">
-{success}
-</motion.div>
-)}
-{error && (
-<motion.div variants={itemVariants} className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-lg mb-6">
-{error}
-</motion.div>
-)}
+<motion.div className="max-w-7xl mx-auto p-4 md:p-8" variants={containerVariants} initial="hidden" animate="visible">
+    {success && <div className="bg-green-900/50 border border-green-700 p-3 rounded-lg mb-6 text-green-300">{success}</div>}
+    {error && <div className="bg-red-900/50 border border-red-700 p-3 rounded-lg mb-6 text-red-300">{error}</div>}
 
-{/* --- INTERACTIVE PROFILE HUB --- */}
-<motion.div
-variants={itemVariants}
-whileHover={cardHoverEffect}
-className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-8 bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
->
-{/* Left Side: Profile Info */}
-<div className="lg:col-span-2 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 relative">
-<div className="absolute top-6 right-4 flex items-center space-x-2"> {/* top-6 for spacing */}
-{/* --- FIX: Styled NotificationBell --- */}
-<div className="p-3 rounded-full bg-black/40 border border-emerald-700/50 text-gray-300 hover:text-emerald-400 transition-colors cursor-pointer shadow-lg">
-<NotificationBell className="w-6 h-6" /> 
-</div>
-{/* --- END FIX --- */}
-<button
-onClick={handleEditProfile}
-className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition shadow-lg"
-title="Edit Profile"
->
-<Edit size={20} />
-</button>
-</div>
-<div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-emerald-700/50 shadow-md flex-shrink-0">
-<img
-src={user?.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}` : defaultAvatar}
-alt="Profile"
-className="w-full h-full object-cover"
-/>
-</div>
-<div className="text-center sm:text-left w-full">
-<h2 className="text-3xl font-bold text-white">{user?.name || "User"}</h2>
-{!isEditingStatus ? (
-<div className="flex items-center justify-center sm:justify-start group" onClick={() => setIsEditingStatus(true)}>
-<p className="text-lg text-gray-300 mt-1 italic group-hover:text-emerald-300 cursor-pointer">
-{statusInput || "Click to set your status"}
-</p>
-<Edit size={16} className="ml-2 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-</div>
-) : (
-<div className="flex items-center space-x-2 mt-2">
-<input type="text" value={statusInput} onChange={(e) => setStatusInput(e.target.value)} className="w-full sm:w-auto bg-gray-800/50 border border-emerald-700 text-white rounded-lg px-3 py-1 text-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="What are you working on?" />
-<button onClick={handleStatusUpdate} className="p-1.5 bg-green-600 rounded-md hover:bg-green-500"><Check size={16} /></button>
-<button onClick={() => setIsEditingStatus(false)} className="p-1.5 bg-red-600 rounded-md hover:bg-red-500"><X size={16} /></button>
-</div>
-)}
-<div className="flex justify-center sm:justify-start space-x-4 mt-4">
-{user.socials?.linkedin && <a href={user.socials.linkedin} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Linkedin size={22} /></a>}
-{user.socials?.github && <a href={user.socials.github} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Github size={22} /></a>}
-{user.socials?.twitter && <a href={user.socials.twitter} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-emerald-400 transition"><Twitter size={22} /></a>}
-</div>
-</div>
-</div>
-{/* Right Side: Profile Strength */}
-<div className="border-t border-emerald-900/50 lg:border-t-0 lg:border-l lg:pl-6 pt-6 lg:pt-0">
-<h3 className="text-2xl font-semibold text-white mb-4">Profile Strength</h3>
-<div className="w-full bg-gray-700 rounded-full h-3 mb-2">
-<motion.div className="bg-gradient-to-r from-teal-400 to-emerald-500 h-3 rounded-full" initial={{ width: "0%" }} animate={{ width: `${profileStrength}%` }} transition={{ duration: 1, ease: "easeInOut" }}></motion.div>
-</div>
-<p className="text-lg font-semibold text-emerald-300 mb-4">{profileStrength}% Complete</p>
-<ul className="space-y-3">
-<li className={`flex items-center ${strengthChecks.status ? "text-gray-300" : "text-gray-500"}`}>
-{strengthChecks.status ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Set your status
-</li>
-<li className={`flex items-center justify-between ${strengthChecks.socials ? "text-gray-300" : "text-gray-500"}`}>
-<div className="flex items-center">{strengthChecks.socials ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Link social accounts</div>
-{!strengthChecks.socials && <button onClick={handleEditProfile} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
-</li>
-<li className={`flex items-center justify-between ${strengthChecks.teach ? "text-gray-300" : "text-gray-500"}`}>
-<div className="flex items-center">{strengthChecks.teach ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Add skills to teach</div>
-{!strengthChecks.teach && <button onClick={openModal} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
-</li>
-<li className={`flex items-center justify-between ${strengthChecks.learn ? "text-gray-300" : "text-gray-500"}`}>
-<div className="flex items-center">{strengthChecks.learn ? <CheckCircle size={20} className="text-emerald-400 mr-3" /> : <Circle size={20} className="mr-3" />} Add skills to learn</div>
-{!strengthChecks.learn && <button onClick={openModal} className="text-emerald-500 hover:text-emerald-400"><Plus size={16} /></button>}
-</li>
-</ul>
-</div>
+    <motion.div variants={itemVariants} whileHover={cardHoverEffect} className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8 bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50 shadow-2xl">
+        <div className="lg:col-span-2 flex items-center space-x-6 relative">
+            <div className="absolute top-0 right-0 flex space-x-2"><NotificationBell /><button onClick={handleEditProfile} className="bg-emerald-500 p-2 rounded-full"><Edit size={16} /></button></div>
+            <img src={user.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}` : defaultAvatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-emerald-500 object-cover" />
+            <div>
+                <h2 className="text-3xl font-bold">{user.name}</h2>
+                {!isEditingStatus ? <p onClick={()=>setIsEditingStatus(true)} className="italic text-gray-400 cursor-pointer">{user.status || "Set status"}</p> : <div className="flex items-center space-x-2"><input value={statusInput} onChange={e=>setStatusInput(e.target.value)} className="bg-gray-800 rounded p-1 text-sm outline-none"/><button onClick={handleStatusUpdate} className="bg-green-600 p-1 rounded"><Check size={14}/></button></div>}
+            </div>
+        </div>
+        <div className="border-l border-emerald-700/30 pl-6">
+            <h3 className="font-bold mb-2 uppercase text-xs text-emerald-500">Profile Strength</h3>
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{width:`${profileStrength}%`}}/></div>
+            <p className="text-[10px] mt-2 text-gray-400">{profileStrength}% Complete</p>
+        </div>
+    </motion.div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col">
+            <h2 className="text-2xl font-bold mb-6">Skill Bank</h2>
+            <div className="space-y-6 overflow-y-auto session-list flex-1 pr-2">
+                <div><p className="text-[10px] text-gray-500 mb-2 uppercase font-black tracking-widest">Teaching</p><div className="flex flex-wrap gap-2">{skillsToTeach.map((s,i) => <span key={i} className="bg-emerald-900/40 border border-emerald-700 px-3 py-1 rounded-full text-xs">{s}</span>)}</div></div>
+                <div><p className="text-[10px] text-gray-500 mb-2 uppercase font-black tracking-widest">Learning</p><div className="flex flex-wrap gap-2">{skillsToLearn.map((s,i) => <span key={i} className="bg-teal-900/40 border border-teal-700 px-3 py-1 rounded-full text-xs">{s}</span>)}</div></div>
+            </div>
+            <SkillLevelIndicator teachSkills={skillsToTeach} learnSkills={skillsToLearn} />
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col">
+            <h2 className="text-2xl font-bold mb-4">Sessions</h2>
+            <div className="flex space-x-2 mb-4">
+                {['pending', 'upcoming', 'completed'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${activeTab === tab ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400'}`}>{tab}</button>)}
+            </div>
+            <div className="overflow-y-auto session-list space-y-3 flex-1 pr-2">
+                {(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).map((s) => (
+                    <div key={s._id} className="bg-gray-800/40 p-4 rounded-xl flex justify-between items-center border border-emerald-700/20">
+                        <div><p className="font-bold text-white text-sm">{s.skill}</p><p className="text-[10px] text-emerald-400 uppercase tracking-widest">{formatDate(s.sessionDate)}</p></div>
+                        <div className="flex space-x-2">
+                            {activeTab === "pending" && <button onClick={() => handleAccept(s._id)} className="bg-green-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase">Accept</button>}
+                            {activeTab === "upcoming" && <><button onClick={() => handleStartChat(s._id)} className="bg-teal-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase">Chat</button><button onClick={() => handleMarkAsDone(s._id)} className="bg-gray-700 hover:bg-emerald-600 transition px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center"><Check size={12} className="mr-1"/> Mark Done</button></>}
+                            {activeTab === "completed" && <span className="text-emerald-500 flex items-center text-[10px] font-black uppercase"><CheckCircle size={12} className="mr-1"/> Verified</span>}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </motion.div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <motion.div variants={itemVariants} className="bg-black/40 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50">
+            <div className="flex items-center mb-6"><Sparkles className="text-emerald-400 mr-2" /> <h2 className="text-xl font-bold text-white">Growth Coach</h2></div>
+            <AnimatePresence mode="wait">
+                {aiTip.type === 'match' ? <AiMatchCard match={aiTip.matchData} handleViewProfile={handleViewProfile} handleSendRequest={handleSendRequest} fetchAiMatch={fetchAiMatch} /> : <div className="text-gray-300 text-sm italic py-4 text-center border border-dashed border-gray-700 rounded-xl">{aiTip.text} {aiTip.cta && <button onClick={aiTip.onClick} className="text-emerald-500 underline ml-1">{aiTip.cta}</button>}</div>}
+            </AnimatePresence>
+        </motion.div>
+        <motion.div variants={itemVariants} className="bg-black/30 rounded-2xl p-6 border border-emerald-700/50 flex flex-col justify-center text-center">
+            <h2 className="text-xl font-bold mb-6 text-white uppercase tracking-tighter">Activity</h2>
+            <div className="grid grid-cols-3 gap-4 px-4">
+                <div className="bg-emerald-900/20 p-4 rounded-xl border border-emerald-500/20"><p className="text-2xl font-black text-emerald-400">{completedSessions.length}</p><p className="text-[10px] text-gray-500 uppercase font-bold">Done</p></div>
+                <div className="bg-blue-900/20 p-4 rounded-xl border border-blue-500/20"><p className="text-2xl font-black text-blue-400">{acceptedSessions.length}</p><p className="text-[10px] text-gray-500 uppercase font-bold">Live</p></div>
+                <div className="bg-amber-900/20 p-4 rounded-xl border border-amber-500/20"><p className="text-2xl font-black text-amber-400">{pendingSessions.length}</p><p className="text-[10px] text-gray-500 uppercase font-bold">Wait</p></div>
+            </div>
+        </motion.div>
+    </div>
 </motion.div>
 
-{/* --- MAIN DATA ROW: SKILLS + SESSIONS --- */}
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-{/* --- SKILL BANK --- */}
-<motion.div
-variants={itemVariants}
-whileHover={cardHoverEffect}
-className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col hover:shadow-emerald-500/20 transition-all duration-300"
->
-<div className="flex justify-between items-center mb-6">
-<h2 className="text-2xl font-semibold text-white">My Skill Bank</h2>
-<button onClick={openModal} className="flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-sm font-medium">
-<Edit size={16} className="mr-2" /> Manage Skills
-</button>
-</div>
-<div className="space-y-6 overflow-y-auto session-list pr-2">
-<div>
-<p className="text-lg font-medium text-gray-300 mb-3">Skills I Can Teach:</p>
-<div className="flex flex-wrap gap-2">
-{strengthChecks.teach ? (
-skillsToTeach.map((s, i) => (<span key={i} className="bg-emerald-800/50 border border-emerald-700 text-emerald-200 text-base font-medium rounded-full px-4 py-1">{s}</span>))
-) : ( <span className="text-gray-500 text-sm p-2 italic">Add skills to teach...</span> )}
-</div>
-</div>
-<div>
-<p className="text-lg font-medium text-gray-300 mb-3">Skills I Want to Learn:</p>
-<div className="flex flex-wrap gap-2">
-{strengthChecks.learn ? (
-skillsToLearn.map((s, i) => (<span key={i} className="bg-teal-800/50 border border-teal-700 text-teal-200 text-base font-medium rounded-full px-4 py-1">{s}</span>))
-) : ( <span className="text-gray-500 text-sm p-2 italic">Add skills to learn...</span> )}
-</div>
-</div>
-</div>
-</motion.div>
-
-{/* --- SESSION HUB --- */}
-<motion.div
-id="session-hub"
-variants={itemVariants}
-whileHover={cardHoverEffect}
-className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 h-[450px] flex flex-col hover:shadow-emerald-500/20 transition-all duration-300"
->
-<h2 className="text-2xl font-semibold text-white mb-4">My Session Hub</h2>
-<div className="flex flex-wrap gap-2 mb-4">
-<button onClick={() => setActiveTab("pending")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "pending" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Pending ({pendingSessions.length})</button>
-<button onClick={() => setActiveTab("upcoming")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "upcoming" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Upcoming ({acceptedSessions.length})</button>
-{/* --- THIS IS THE FIX --- */}
-<button onClick={() => setActiveTab("completed")} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${activeTab === "completed" ? "bg-emerald-500 text-white" : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70"}`}>Completed ({completedSessions.length})</button>
-</div>
-<div className="flex-1 overflow-y-auto space-y-3 pr-2 session-list">
-{(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).length > 0 ? (
-(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).map((s) => (
-<div key={s._id} className="bg-gray-800/60 ring-1 ring-emerald-700/50 rounded-lg p-4 hover:bg-gray-700/70 transition flex flex-col sm:flex-row sm:items-center sm:justify-between">
-<div>
-<p className="font-semibold text-white">{getSessionPartnerName(s, user._id)}</p>
-<p className="text-sm text-emerald-300">{s.skill}</p>
-<div className="flex items-center space-x-4 text-xs text-gray-400 mt-1">
-<span className="flex items-center"><Calendar size={14} className="mr-1.5" /> {formatDate(s.sessionDate)}</span>
-<span className="flex items-center"><Clock size={14} className="mr-1.5" /> {formatTime(s.sessionDate)}</span>
-</div>
-</div>
-<button
-onClick={() => activeTab === "pending" ? handleAccept(s._id) : handleStartChat(s._id)}
-className={`mt-3 sm:mt-0 text-sm font-medium px-3 py-1.5 rounded-lg transition active:scale-95 ${activeTab === "pending" ? "bg-green-500 text-white hover:bg-green-600" : "bg-teal-500 text-white hover:bg-teal-600"}`}
->
-{activeTab === "pending" ? "Accept" : activeTab === "upcoming" ? "Start Chat" : "View Feedback"}
-</button>
-</div>
-))
-) : ( <p className="text-gray-500 text-center pt-16">No {activeTab} sessions.</p> )}
-</div>
-</motion.div>
-</div>
-
-{/* --- WIDGET ROW: AI COACH + ACTIVITY --- */}
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-{/* --- AI GROWTH COACH (NEW) --- */}
-<motion.div
-variants={itemVariants}
-whileHover={cardHoverEffect}
-className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
->
-<div className="flex items-center mb-4">
-<Sparkles size={24} className="text-emerald-400 mr-3" />
-<h2 className="text-2xl font-semibold text-white">AI Growth Coach</h2>
-</div>
-
-{/* 🛠️ CONDITIONAL RENDER: Show Card, Loading, or Tip */}
-<AnimatePresence mode="wait">
-{(aiTip.type === 'match' && aiTip.matchData) ? (
-<AiMatchCard 
-key="match" 
-match={aiTip.matchData} 
-handleViewProfile={handleViewProfile} 
-handleSendRequest={handleSendRequest} // ⬅️ Passed the new function
-fetchAiMatch={fetchAiMatch} // ⬅️ Passing fetchAiMatch for "Find Next Match"
-/>
-) : (
-<motion.div
-key={aiTip.type}
-initial={{ opacity: 0, y: 10 }}
-animate={{ opacity: 1, y: 0 }}
-exit={{ opacity: 0, y: -10 }}
-transition={{ duration: 0.2 }}
->
-<p className="text-lg text-gray-300 mb-5 min-h-[56px]">
-{aiTip.text}
-{aiTip.type === 'loading' && <Loader size={18} className="ml-2 inline animate-spin text-emerald-400" />}
-</p>
-<button
-onClick={aiTip.onClick}
-disabled={aiTip.disabled}
-className="w-full flex items-center justify-center px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-base font-medium disabled:opacity-50 disabled:cursor-wait"
->
-{aiTip.icon}
-{aiTip.cta}
-</button>
-</motion.div>
-)}
-</AnimatePresence>
-</motion.div>
-
-{/* --- ACTIVITY HUB --- */}
-<motion.div
-variants={itemVariants}
-whileHover={cardHoverEffect}
-className="bg-black/30 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-emerald-700/50 hover:shadow-emerald-500/20 transition-all duration-300"
->
-<h3 className="text-2xl font-semibold text-white mb-4">Activity at a Glance</h3>
-<div className="space-y-4">
-<div className="flex items-center">
-<div className="p-3 bg-emerald-500/20 rounded-lg mr-4"><CheckCircle className="text-emerald-400" size={24} /></div>
-<div>
-<p className="text-3xl font-bold text-white">{completedSessions.length}</p>
-<p className="text-sm text-gray-300">Sessions Completed</p>
-</div>
-</div>
-<div className="flex items-center">
-<div className="p-3 bg-sky-500/20 rounded-lg mr-4"><Calendar className="text-sky-400" size={24} /></div>
-<div>
-<p className="text-3xl font-bold text-white">{acceptedSessions.length}</p>
-<p className="text-sm text-gray-300">Sessions Upcoming</p>
-</div>
-</div>
-<div className="flex items-center">
-<div className="p-3 bg-amber-500/20 rounded-lg mr-4"><Clock className="text-amber-400" size={24} /></div>
-<div>
-<p className="text-3xl font-bold text-white">{pendingSessions.length}</p>
-<p className="text-sm text-gray-300">Sessions Pending</p>
-</div>
-</div>
-</div>
-</motion.div>
-</div>
-
-</motion.div>
-
-{/* --- EDIT MODAL (with AI) --- */}
 <AnimatePresence>
 {isModalOpen && (
-<motion.div
-className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-initial={{ opacity: 0 }}
-animate={{ opacity: 1 }}
-exit={{ opacity: 0 }}
-transition={{ duration: 0.2 }}
->
-<motion.div
-className="bg-gray-900/80 backdrop-blur-xl border border-emerald-700/50 rounded-lg shadow-xl p-6 w-full max-w-lg"
-initial={{ y: 50, opacity: 0 }}
-animate={{ y: 0, opacity: 1 }}
-exit={{ y: 50, opacity: 0 }}
-transition={{ type: "spring", stiffness: 300, damping: 25 }}
->
-<h2 className="text-2xl font-semibold text-white mb-6">Tune Your Skill Profile</h2>
-{error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
-
-<div className="mb-4">
-<label className="block text-gray-300 mb-2">Skills You Can Teach</label>
-<input type="text" value={modalTeach} onChange={(e) => setModalTeach(e.target.value)} className="w-full border border-gray-600 rounded-lg p-3 text-base bg-gray-800/50 text-white placeholder-gray-500 focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. JavaScript, Python, UI Design" />
-<p className="text-xs text-gray-400 mt-1">Separate skills with a comma.</p>
-</div>
-
-<div className="mb-6">
-<div className="flex justify-between items-center mb-2">
-<label className="block text-gray-300">Skills You Want to Learn</label>
-<button
-onClick={handleAiSuggest}
-disabled={isAiLoading}
-className="flex items-center text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-wait"
->
-<Sparkles size={16} className={`mr-1.5 ${isAiLoading ? 'animate-spin' : ''}`} />
-{isAiLoading ? 'Suggesting...' : 'AI Suggest'}
-</button>
-</div>
-<input type="text" value={modalLearn} onChange={(e) => setModalLearn(e.target.value)} className="w-full border border-gray-600 rounded-lg p-3 text-base bg-gray-800/50 text-white placeholder-gray-500 focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. React, Data Science, Figma" />
-<p className="text-xs text-gray-400 mt-1">Separate skills with a comma.</p>
-</div>
-
-<div className="flex justify-end space-x-4">
-<button onClick={closeModal} className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition text-base">
-Cancel
-</button>
-<button onClick={handleUpdateSkills} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition text-base">
-Save My Skills
-</button>
-</div>
-</motion.div>
-</motion.div>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+        <motion.div initial={{scale: 0.9, opacity: 0}} animate={{scale: 1, opacity: 1}} className="bg-gray-900 border border-emerald-700/50 p-8 rounded-3xl w-full max-w-lg shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6">Update Profile</h2>
+            <div className="space-y-4">
+                <input value={modalTeach} onChange={e=>setModalTeach(e.target.value)} placeholder="Skills I can teach..." className="w-full bg-black/40 border border-gray-700 p-4 rounded-2xl text-white outline-none focus:border-emerald-500" />
+                <input value={modalLearn} onChange={e=>setModalLearn(e.target.value)} placeholder="Skills I want to learn..." className="w-full bg-black/40 border border-gray-700 p-4 rounded-2xl text-white outline-none focus:border-emerald-500" />
+            </div>
+            <div className="flex justify-end space-x-4 mt-8">
+                <button onClick={()=>setIsModalOpen(false)} className="text-gray-500 font-bold hover:text-gray-300 transition">Cancel</button>
+                <button onClick={handleUpdateSkills} className="bg-emerald-500 px-8 py-3 rounded-2xl font-black text-xs uppercase">Save</button>
+            </div>
+        </motion.div>
+    </div>
 )}
 </AnimatePresence>
-<Footer />
-</div>
-<ToastContainer position="bottom-right" autoClose={3000} theme="dark" /> 
+
+<Footer /><ToastContainer theme="dark" position="bottom-right" />
 </div>
 );
 };

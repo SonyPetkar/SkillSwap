@@ -1,651 +1,240 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
-
 import { io } from 'socket.io-client';
-
 import axios from 'axios';
 import Navbar from '../components/navbar/Navbar';
 import MessageInput from '../components/chat/MessageInput';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Calendar, AlertTriangle, X as LucideX, Menu as LucideMenu, Star, CheckCircle, MessageSquare, Video } from 'lucide-react'; 
-
+import { 
+  Calendar, AlertTriangle, X as LucideX, Menu as LucideMenu, 
+  Star, CheckCircle, MessageSquare, Video, Archive, RotateCcw, Unlock
+} from 'lucide-react'; 
 import Footer from "../components/footer/Footer";
-
 import { motion, AnimatePresence } from 'framer-motion'; 
-
 import { ToastContainer, toast } from 'react-toastify'; 
 import 'react-toastify/dist/ReactToastify.css'; 
 import defaultAvatar from "../assets/avatar.jpeg"; 
 
-
-// --- STYLES AND ANIMATIONS (Adjusted to Emerald Theme) ---
 const AnimatedGradientStyles = () => (
 <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @keyframes gradient-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 .animate-gradient-shift { background-size: 200% 200%; animation: gradient-shift 15s ease infinite; }
-/* Themed Scrollbars */
-.themed-scrollbar::-webkit-scrollbar { width: 8px; }
-.themed-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 10px; }
-.themed-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.6); border-radius: 10px; }
-.themed-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 1); }
-/* Style date/time inputs */
-input[type="date"], input[type="time"] { color-scheme: dark; }
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator {
-filter: invert(0.8) sepia(1) saturate(5) hue-rotate(120deg); cursor: pointer;
-}
-/* Style file input button */
-.custom-file-input::-webkit-file-upload-button { visibility: hidden; }
-.custom-file-input::before {
-content: 'Choose File'; display: inline-block;
-background: linear-gradient(to bottom, #10b981, #0d9488); border: 1px solid #047857;
-border-radius: 6px; padding: 5px 8px; outline: none; white-space: nowrap;
-cursor: pointer; color: white; font-weight: 500; font-size: 10pt; margin-right: 10px;
-}
-.custom-file-input:hover::before { background: linear-gradient(to bottom, #059669, #0d9488); }
-.custom-file-input:active::before { background-color: #047857; }
+.themed-scrollbar::-webkit-scrollbar { width: 6px; }
+.themed-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+.themed-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }
+.themed-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.8); }
+@keyframes pulse-emerald { 0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 50% { box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.2); } }
+.active-glow { animation: pulse-emerald 3s infinite; }
 `}</style>
 );
 
-// Framer Motion Variants for Modals
-const modalVariants = {
-hidden: { opacity: 0, scale: 0.9 },
-visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 25 } },
-exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } }
-};
-const backdropVariants = {
-hidden: { opacity: 0 },
-visible: { opacity: 1 },
-exit: { opacity: 0 }
-};
-
-// ----------------------------------------------------
-// ➡️ Robust Time Formatting Helper
-// ----------------------------------------------------
-const formatTime = (dateInput) => {
-if (!dateInput) return 'N/A';
-try {
-const date = new Date(dateInput);
-// Check if the date conversion resulted in a valid date object
-if (isNaN(date.getTime())) {
-// Fallback for custom time strings like "16:30" (though usually unnecessary if data is ISO)
-return String(dateInput);
-}
-// Use local time formatting
-return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-} catch (e) {
-return 'N/A';
-}
-};
-
-
 const ChatPage = () => {
-// --- STATE ---
-const { sessionId } = useParams();
-const [connections, setConnections] = useState([]);
-const [selectedConnection, setSelectedConnection] = useState(null);
-const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-const [scheduledDate, setScheduledDate] = useState('');
-const [scheduledTime, setScheduledTime] = useState('');
-const [messages, setMessages] = useState([]);
-const [socket, setSocket] = useState(null);
-const [notificationSocket, setNotificationSocket] = useState(null);
-const [rating, setRating] = useState(1);
-const [feedback, setFeedback] = useState('');
-const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-const [reason, setReason] = useState('');
-const [description, setDescription] = useState('');
-const [screenshot, setScreenshot] = useState(null);
-const [reportSuccess, setReportSuccess] = useState(false);
-const navigate = useNavigate(); 
-const [isMenuOpen, setIsMenuOpen] = useState(false);
-const messagesEndRef = useRef(null); 
-const loggedInUser = JSON.parse(localStorage.getItem('user')); 
+  const { sessionId } = useParams();
+  const [connections, setConnections] = useState([]);
+  const [selectedConnection, setSelectedConnection] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const navigate = useNavigate(); 
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const messagesEndRef = useRef(null); 
+  const [loggedInUser, setLoggedInUser] = useState(null); 
 
-// ----------------------------------------------------
-// ➡️ 1. FETCH CONNECTIONS LIST & FIX DEFAULT SELECTION
-// ----------------------------------------------------
-const fetchConnections = async () => {
-const token = localStorage.getItem('token');
-if (!token || !loggedInUser) {
-navigate('/login'); 
-return;
-}
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    setLoggedInUser(user);
+  }, []); 
 
-try {
-const res = await axios.get('http://localhost:5000/api/sessions/accepted', {
-headers: { 'x-auth-token': token },
-});
+  // 🚀 THE FIX: Data deduplication logic
+  const fetchConnections = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const [accepted, completed] = await Promise.all([
+        axios.get('http://localhost:5000/api/sessions/accepted', { headers: { 'x-auth-token': token } }),
+        axios.get('http://localhost:5000/api/sessions/completed', { headers: { 'x-auth-token': token } })
+      ]);
+      
+      // Merge and filter by unique ID to prevent double tabs
+      const rawChats = [...accepted.data, ...completed.data];
+      const uniqueChatsMap = new Map();
+      rawChats.forEach(chat => uniqueChatsMap.set(chat._id, chat));
+      const deduplicatedChats = Array.from(uniqueChatsMap.values());
 
-const fetchedConnections = res.data;
-setConnections(fetchedConnections);
+      setConnections(deduplicatedChats);
 
-// 🛑 FIX: Only auto-select if a sessionId is provided in the URL.
-if (sessionId) {
-const initialConnection = fetchedConnections.find(conn => conn._id === sessionId);
-if (initialConnection) {
-setSelectedConnection(initialConnection);
-} else {
-// If sessionId is invalid, clear it from the state and URL
-setSelectedConnection(null);
-navigate('/chat', { replace: true }); 
-}
-} else {
-// If no sessionId in URL, ensure selectedConnection is null to show placeholder
-setSelectedConnection(null);
-}
+      if (sessionId) {
+        const initialConnection = deduplicatedChats.find(conn => conn._id === sessionId);
+        if (initialConnection) setSelectedConnection(initialConnection);
+      }
+    } catch (err) { console.error(err); }
+  };
 
-} catch (err) {
-console.error('Error fetching connections:', err);
-toast.error('Failed to load connections list.');
-}
-};
+  useEffect(() => { fetchConnections(); }, [sessionId, loggedInUser?._id]); 
 
+  useEffect(() => {
+    if (!loggedInUser) return;
+    const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const newSocket = io(`${socketProtocol}//localhost:5000/chat`, { query: { userId: loggedInUser._id }, withCredentials: true });
+    setSocket(newSocket);
+    newSocket.on('connect', () => { if (sessionId) newSocket.emit('join_room', sessionId); });
+    newSocket.on('receive_message', (incomingMessage) => {
+      if (selectedConnection && incomingMessage.conversationId === selectedConnection._id) {
+        if (incomingMessage.senderId._id !== loggedInUser._id) { 
+          setMessages(prevMessages => [...prevMessages, incomingMessage]);
+        }
+      }
+    });
+    return () => { newSocket.disconnect(); };
+  }, [loggedInUser?._id, sessionId, selectedConnection]); 
 
-// ----------------------------------------------------
-// ➡️ 2. SOCKET AND MESSAGE LOGIC (UPDATED)
-// ----------------------------------------------------
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!loggedInUser || !selectedConnection) { setMessages([]); return; }
+      const token = localStorage.getItem('token');
+      try {
+        const response = await axios.get(`http://localhost:5000/api/chat/${selectedConnection._id}`, { headers: { 'x-auth-token': token } });
+        setMessages(response.data);
+      } catch (error) { console.error(error); }
+    };
+    fetchMessages();
+  }, [selectedConnection?._id]); 
 
-// Fetch Connections on load and whenever URL changes
-useEffect(() => { 
-fetchConnections();
-}, [sessionId]); 
+  const handleSendMessage = async (content, file, link) => {
+    if (!socket || !loggedInUser || !selectedConnection) return;
+    const messageData = { senderId: loggedInUser._id, conversationId: selectedConnection._id, content: content || null };
+    setMessages(prevMessages => [...prevMessages, { ...messageData, createdAt: new Date().toISOString(), senderId: { _id: loggedInUser._id } }]);
+    socket.emit('send_message', messageData);
+  };
 
-// Setup Chat Socket Connection and Listeners
-useEffect(() => {
-// 🛑 Only connect the socket if there is a logged-in user
-if (!loggedInUser) return;
+  const handleArchiveSession = async () => {
+    const confirmArchive = window.confirm("Archive this chat? It will be moved to your 'Completed' list.");
+    if (!confirmArchive) return;
+    const token = localStorage.getItem("token");
+    try {
+        await axios.post("http://localhost:5000/api/sessions/mark-session", { sessionId: selectedConnection._id, status: 'completed', rating: 5, feedback: "Archived" }, { headers: { "x-auth-token": token } });
+        toast.success("Chat archived.");
+        fetchConnections(); 
+    } catch (err) { toast.error("Failed to archive."); }
+  };
 
-const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const newSocket = io(`${socketProtocol}//localhost:5000/chat`, { 
-query: { userId: loggedInUser._id },
-withCredentials: true 
-});
+  const handleReopenSession = async () => {
+    const confirmReopen = window.confirm("Do you want to reopen this chat?");
+    if (!confirmReopen) return;
+    const token = localStorage.getItem("token");
+    try {
+        await axios.post("http://localhost:5000/api/sessions/mark-session", { sessionId: selectedConnection._id, status: 'accepted' }, { headers: { "x-auth-token": token } });
+        toast.success("Chat reopened!");
+        fetchConnections(); 
+    } catch (err) { toast.error("Failed to reopen."); }
+  };
 
-setSocket(newSocket);
+  const isChatBlocked = selectedConnection?.status === 'completed' || selectedConnection?.status === 'canceled';
 
-newSocket.on('connect', () => {
-// Emit join_room ONLY if a sessionId exists
-if (sessionId) {
-newSocket.emit('join_room', sessionId);
-}
-});
+  const getOtherUserName = (connection) => { 
+    if (!connection || !loggedInUser) return 'User';
+    const otherUser = connection.userId1?._id === loggedInUser._id ? connection.userId2 : connection.userId1;
+    return otherUser?.name || 'Partner';
+  };
 
-// Listener for incoming messages
-newSocket.on('receive_message', (incomingMessage) => {
-const loggedInUserId = loggedInUser._id;
+  const getChatUserAvatar = () => { 
+    if (!selectedConnection || !loggedInUser) return defaultAvatar;
+    const otherUser = selectedConnection.userId1?._id === loggedInUser._id ? selectedConnection.userId2 : selectedConnection.userId1;
+    return otherUser?.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${otherUser.profilePicture}` : defaultAvatar;
+  };
 
-// Check if the received message belongs to the currently selected chat
-if (selectedConnection && incomingMessage.conversationId === selectedConnection._id) {
-// Only add the message to the list if it came from another user (to avoid socket echo duplication)
-// Note: Optimistic update handles the sender's own message instantly, so we ignore the socket echo for self.
-if (incomingMessage.senderId._id !== loggedInUserId) { 
-setMessages(prevMessages => [...prevMessages, incomingMessage]);
-messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
-}
-}
-// Handle potential notification/alert for messages for non-selected chats if needed
-});
+  return (
+    <div className="min-h-screen relative w-full bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 animate-gradient-shift overflow-hidden font-['Inter',_sans-serif]">
+      <AnimatedGradientStyles />
+      <div className="relative z-10 flex flex-col h-screen"> 
+        <Navbar />
+        <div className="flex flex-1 overflow-hidden pt-4 pb-4 px-4 md:px-6 lg:px-8 gap-6">
+          
+          <div className="w-72 hidden md:flex flex-col bg-black/40 backdrop-blur-2xl rounded-3xl border border-emerald-500/20 p-6">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tighter">
+               <MessageSquare size={18} className="text-emerald-500" /> Inbox
+            </h2>
+            <div className="flex-1 overflow-y-auto space-y-2 themed-scrollbar">
+              {connections.map((conn) => (
+                <div 
+                  key={conn._id} 
+                  onClick={() => navigate(`/chat/${conn._id}`)} 
+                  className={`p-4 rounded-2xl cursor-pointer transition-all border ${selectedConnection?._id === conn._id ? 'bg-emerald-600/30 border-emerald-500/50 active-glow' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                >
+                  <p className="font-bold text-sm">{getOtherUserName(conn)}</p>
+                  <div className="flex items-center justify-between mt-1">
+                     <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">{conn.skill}</p>
+                     {conn.status === 'completed' && <Archive size={12} className="text-gray-500" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-return () => {
-newSocket.disconnect();
-};
-}, [loggedInUser?._id]); // Run only on initial mount and user change
+          <div className="flex-1 bg-black/20 backdrop-blur-xl rounded-3xl border border-emerald-500/10 flex flex-col overflow-hidden">
+            {selectedConnection ? (
+              <>
+                <div className="p-5 border-b border-emerald-500/10 flex justify-between items-center bg-white/5 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                     <img src={getChatUserAvatar()} className="w-10 h-10 rounded-full border border-emerald-500/30 object-cover" alt="avatar" />
+                     <div>
+                        <h2 className="text-lg font-bold text-white">{getOtherUserName(selectedConnection)}</h2>
+                        <p className="text-[10px] text-emerald-500/70 font-black uppercase tracking-widest">{selectedConnection.status}</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => window.open(`https://meet.jit.si/${selectedConnection._id}`, '_blank')} className="p-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 rounded-xl transition-all"><Video size={18}/></button>
+                    {!isChatBlocked ? (
+                        <button onClick={handleArchiveSession} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl transition-all"><Archive size={18}/></button>
+                    ) : (
+                        <button onClick={handleReopenSession} className="p-2 bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white rounded-xl transition-all"><RotateCcw size={18}/></button>
+                    )}
+                  </div>
+                </div>
 
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 themed-scrollbar">
+                  {messages.map((msg, i) => (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} key={i} className={`flex ${msg.senderId?._id === loggedInUser?._id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`p-4 rounded-2xl max-w-[70%] ${msg.senderId?._id === loggedInUser?._id ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none border border-white/5'}`}>
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
 
-// Fetch Message History
-useEffect(() => {
-const fetchMessages = async () => {
-if (!selectedConnection) {
-setMessages([]); // Clear messages if connection is deselected
-return;
-}
-const token = localStorage.getItem('token');
-
-// 🛑 IMPORTANT: If we are connected, ensure we join the new room when selectedConnection changes
-if (socket && selectedConnection._id) {
-socket.emit('join_room', selectedConnection._id);
-}
-
-try {
-const response = await axios.get(`http://localhost:5000/api/chat/${selectedConnection._id}`, {
-headers: { 'x-auth-token': token }
-});
-setMessages(response.data);
-} catch (error) {
-console.error('Error fetching messages:', error);
-toast.error('Failed to load chat history.');
-}
-};
-
-fetchMessages();
-}, [selectedConnection, socket]); // Fetch messages when selectedConnection or socket changes
-
-
-// Scroll to Bottom
-useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]); 
-
-
-const handleSendMessage = async (content, file, link) => {
-if (!socket || !loggedInUser || !selectedConnection || (!content && !file && !link)) return;
-
-let mediaUrl = null;
-let mediaType = null;
-const token = localStorage.getItem('token');
-const conversationId = selectedConnection._id;
-
-// 1. Handle File Upload (UNCHANGED)
-if (file) {
-const formData = new FormData();
-formData.append('file', file);
-formData.append('sessionId', conversationId);
-
-try {
-const uploadRes = await axios.post('http://localhost:5000/api/chat/upload-media', formData, {
-headers: { 
-'Content-Type': 'multipart/form-data',
-'x-auth-token': token
-}
-});
-
-mediaUrl = uploadRes.data.filePath; 
-mediaType = uploadRes.data.fileType; 
-} catch (error) {
-toast.error('Media upload failed!');
-console.error('Media upload error:', error);
-return; 
-}
-}
-
-// 2. Prepare message data for socket emission
-const messageData = {
-senderId: loggedInUser._id,
-conversationId: conversationId,
-content: content || null, 
-mediaUrl: mediaUrl,
-mediaType: mediaType,
-link: link 
-};
-
-// 3. OPTIMISTIC UI UPDATE: Add message to state immediately (UNCHANGED)
-const tempMessage = {
-...messageData,
-_id: Date.now(), 
-createdAt: new Date().toISOString(), // Use ISO string for reliable date parsing
-senderId: { // ⬅️ CRITICAL: Mimics populated structure
-_id: loggedInUser._id,
-name: loggedInUser.name,
-profilePicture: loggedInUser.profilePicture,
-},
-};
-
-setMessages(prevMessages => [...prevMessages, tempMessage]);
-
-// 4. Send message via Socket.IO
-socket.emit('send_message', messageData);
-};
-
-
-// ----------------------------------------------------
-// ➡️ 3. HANDLE SELECT CONNECTION (FIXED)
-// ----------------------------------------------------
-const handleSelectConnection = (connection) => {
-setSelectedConnection(connection);
-// This will trigger the useEffect to fetch messages and join the room
-navigate(`/chat/${connection._id}`); 
-setIsMenuOpen(false); 
-};
-
-
-const openScheduleModal = () => { setIsScheduleModalOpen(true); };
-const closeScheduleModal = () => { setIsScheduleModalOpen(false); };
-const openFeedbackModal = () => { setIsFeedbackModalOpen(true); };
-const closeFeedbackModal = () => { setIsFeedbackModalOpen(false); };
-const handleScheduleSession = async () => { /* ... logic unchanged ... */ };
-const handleMarkSession = async (status) => { /* ... logic unchanged ... */ };
-const openReportModal = () => { setIsReportModalOpen(true); setReportSuccess(false); };
-const closeReportModal = () => { setIsReportModalOpen(false); };
-const handleReportSubmit = async (e) => { /* ... logic unchanged ... */ };
-
-// Keep existing computed variables
-const isUser1 = selectedConnection?.userId1?._id === loggedInUser?._id;
-const isUser2 = selectedConnection?.userId2?._id === loggedInUser?._id;
-const isFeedbackGivenByLoggedInUser = isUser1 ? !!selectedConnection?.feedbackByUser1 : isUser2 ? !!selectedConnection?.feedbackByUser2 : false;
-const bothUsersProvidedFeedback = !!selectedConnection?.feedbackByUser1 && !!selectedConnection?.feedbackByUser2;
-const isSessionCompletedOrCanceled = selectedConnection?.status === 'completed' || selectedConnection?.status === 'canceled';
-const isChatBlocked = isSessionCompletedOrCanceled && bothUsersProvidedFeedback;
-const shouldShowFeedbackButton = !isFeedbackGivenByLoggedInUser && !isChatBlocked; 
-const shouldShowScheduleButton = !isSessionCompletedOrCanceled && !bothUsersProvidedFeedback;
-const shouldShowMarkButtons = !isSessionCompletedOrCanceled; 
-
-// Keep existing helper functions (adjusted for consistency)
-const getOtherUserName = (connection) => { 
-if (!connection || !loggedInUser) return 'Unknown User';
-const otherUser = connection.userId1?._id === loggedInUser._id ? connection.userId2 : connection.userId1;
-return otherUser?.name || 'Partner';
-};
-const getChatUserName = () => { 
-return getOtherUserName(selectedConnection);
-};
-const formatDate = (dateString) => { 
-if (!dateString) return 'N/A';
-const options = { month: 'short', day: 'numeric', year: 'numeric' };
-return new Date(dateString).toLocaleDateString(undefined, options);
-};
-const getChatUserAvatar = () => { 
-if (!selectedConnection || !loggedInUser) return defaultAvatar;
-const otherUser = selectedConnection.userId1?._id === loggedInUser._id ? selectedConnection.userId2 : selectedConnection.userId1;
-return otherUser?.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${otherUser.profilePicture}` : defaultAvatar;
-};
-const isMobile = window.innerWidth < 768;
-
-
-// --- RENDER (Action Buttons commented out) ---
-return (
-// Themed main container
-<div className="min-h-screen relative w-full bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 animate-gradient-shift overflow-hidden font-['Inter',_sans-serif]">
-<AnimatedGradientStyles />
-<div className="relative z-10 flex flex-col h-screen"> 
-<Navbar />
-
-{/* Main Content Area */}
-<div className="flex flex-1 overflow-hidden pt-4 pb-4 px-4 md:px-6 lg:px-8 gap-6">
-
-{/* Hamburger Button for Mobile (Themed) */}
-<button
-className="md:hidden fixed top-[86px] left-4 z-50 p-2 bg-black/50 backdrop-blur-sm text-emerald-400 rounded-lg shadow-lg border border-emerald-700/50"
-onClick={() => setIsMenuOpen(!isMenuOpen)}
-aria-label="Toggle connections list"
->
-<LucideMenu size={24}/>
-</button>
-
-{/* Left Panel: Connections List (Themed) */}
-<motion.div
-initial={false}
-animate={isMobile ? { x: isMenuOpen ? '0%' : '-100%' } : { x: '0%' }}
-transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
-className="fixed md:static top-0 left-0 z-40 w-full max-w-xs h-full md:h-auto md:max-w-[300px] flex-shrink-0 bg-black/50 backdrop-blur-lg rounded-r-2xl md:rounded-2xl shadow-xl border border-emerald-700/50 flex flex-col p-4 md:p-6 overflow-hidden"
->
-
-<div className="flex justify-between items-center mb-4 flex-shrink-0">
-<h2 className="text-2xl font-semibold text-white">Connections</h2>
-<button className="md:hidden text-gray-400 hover:text-emerald-300" onClick={() => setIsMenuOpen(false)}><LucideX size={24} /></button>
-</div>
-<div className="flex-1 overflow-y-auto space-y-3 themed-scrollbar pr-2">
-{connections.length > 0 ? (
-connections.map((connection) => {
-const isSelected = selectedConnection?._id === connection._id;
-const otherUserName = getOtherUserName(connection);
-const otherUser = connection.userId1?._id === loggedInUser?._id ? connection.userId2 : connection.userId1;
-const avatarUrl = otherUser?.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${otherUser.profilePicture}` : defaultAvatar;
-const displayTime = formatTime(connection.sessionTime || connection.sessionDate); 
-
-return (
-<div
-key={connection._id}
-className={`p-3 rounded-lg cursor-pointer transition-all duration-200 flex items-center gap-3 ${
-isSelected
-? 'bg-emerald-600/50 ring-2 ring-emerald-400 shadow-lg' 
-: 'bg-black/20 hover:bg-emerald-900/40 border border-transparent hover:border-emerald-700/50' 
-}`}
-onClick={() => handleSelectConnection(connection)}
->
-<img src={avatarUrl} alt={otherUserName} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-emerald-700" onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }}/>
-<div className="overflow-hidden">
-<p className={`font-semibold truncate ${isSelected ? 'text-white' : 'text-gray-100'}`}>{otherUserName}</p>
-<p className={`text-xs truncate ${isSelected ? 'text-emerald-100' : 'text-emerald-300'}`}>{connection.skill || 'Skill Swap'}</p>
-<p className={`text-xs truncate ${isSelected ? 'text-gray-200' : 'text-gray-400'}`}>{formatDate(connection.sessionDate)} at {displayTime}</p> 
-</div>
-</div>
-);
-})
-) : (
-<p className="text-center text-gray-400 pt-10">No active connections.</p>
-)}
-</div>
-</motion.div>
-
-{/* Mobile Overlay */}
-<AnimatePresence>{isMenuOpen && (<motion.div variants={backdropVariants} initial="hidden" animate="visible" exit="hidden" className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setIsMenuOpen(false)}></motion.div>)}</AnimatePresence>
-
-{/* Right Panel: Chat Area (Themed) */}
-<div className="flex-1 bg-black/30 backdrop-blur-xl rounded-2xl shadow-xl border border-emerald-700/50 flex flex-col overflow-hidden">
-{selectedConnection ? (
-<>
-{/* Chat Header (Themed) */}
-<div className="flex items-center justify-between p-4 border-b border-emerald-700/50 flex-shrink-0">
-<div className="flex items-center gap-3 min-w-0">
-<img src={getChatUserAvatar()} alt={getChatUserName()} className="w-12 h-12 rounded-full object-cover border-2 border-emerald-600 flex-shrink-0" onError={(e) => { e.target.onerror = null; e.target.src=defaultAvatar }}/>
-<div className="min-w-0">
-<h2 className="text-xl md:text-2xl font-semibold text-white truncate">{getChatUserName()}</h2>
-<p className="text-sm text-emerald-300 truncate">{selectedConnection.skill || 'Skill Swap'}</p>
-</div>
-</div>
-
-{/* Action Buttons Container */}
-<div className="flex gap-3">
-
-{/* ➡️ FIX: VIDEO CALL BUTTON - Using Jitsi Meet Public Server */}
-<button
-onClick={() => {
-// Generates a unique meeting link using the conversation ID
-const meetingRoomName = selectedConnection._id;
-const meetingUrl = `https://meet.jit.si/${meetingRoomName}`; 
-window.open(meetingUrl, '_blank');
-}}
-title="Start Video Call, Voice Chat, and Screen Share"
-className="flex items-center gap-1.5 py-1.5 px-3 bg-indigo-600/80 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-200 text-xs font-medium"
->
-<Video size={16} /> Start Meet
-</button>
-
-{/* Report Button (Themed) */}
-<button
-onClick={openReportModal}
-title="Report User"
-className="flex items-center gap-1.5 py-1.5 px-3 bg-red-600/80 text-white rounded-lg shadow hover:bg-red-700 transition duration-200 text-xs font-medium"
->
-<AlertTriangle size={16} /> Report
-</button>
-</div>
-</div>
-
-{/* Messages Container (Themed) */}
-<div className="flex-1 overflow-y-auto p-4 space-y-4 themed-scrollbar">
-{messages.length > 0 ? (
-messages.map((msg, index) => {
-const isSender = msg.senderId?._id === loggedInUser?._id;
-const senderName = msg.senderId?.name || (isSender ? loggedInUser?.name : getChatUserName()) || 'User'; 
-
-return (
-<motion.div
-key={msg._id || index}
-initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
->
-<div className={`max-w-[70%] md:max-w-[60%] p-3 rounded-xl shadow ${ isSender ? 'bg-emerald-700/70 text-white rounded-br-none' : 'bg-gray-700/50 text-gray-100 rounded-bl-none' }`}>
-{!isSender && <p className="text-xs font-semibold text-emerald-300 mb-1">{senderName}</p>}
-<span className="text-sm break-words whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: msg.content || '' }} />
-{msg.mediaUrl && (
-<div className="mt-2 max-w-xs">
-{msg.mediaType === 'image' && <img src={msg.mediaUrl} alt="Uploaded content" className="rounded-lg cursor-pointer object-cover" onClick={() => window.open(msg.mediaUrl, '_blank')} style={{maxHeight: '200px'}}/>}
-{msg.mediaType === 'audio' && <audio controls src={msg.mediaUrl} className="w-full h-10"></audio>}
-{msg.mediaType === 'video' && <video controls src={msg.mediaUrl} className="rounded-lg max-h-[250px]"></video>}
-</div>
-)}
-<p className={`text-xs mt-1.5 ${isSender ? 'text-emerald-100/70 text-right' : 'text-gray-400/80 text-left'}`}>
-{formatTime(msg.createdAt)}
-</p>
-</div>
-</motion.div>
-);
-})
-) : (
-<p className="text-center text-gray-400 pt-16">No messages yet. Start the conversation!</p>
-)}
-<div ref={messagesEndRef} />
-</div>
-
-{/* Feedback Display (Themed) */}
-{isSessionCompletedOrCanceled && (selectedConnection?.feedbackByUser1 || selectedConnection?.feedbackByUser2) && ( // Corrected check
-<div className="feedback-display bg-black/20 p-4 rounded-lg border border-emerald-700/30 m-4 flex-shrink-0">
-{selectedConnection.feedbackByUser1 && (
-<div className="mb-2">
-<h3 className="text-sm font-semibold text-emerald-300">{selectedConnection.userId1?.name || 'User 1'}'s Feedback:</h3>
-<p className="text-xs text-gray-300 italic">"{selectedConnection.feedbackByUser1}"</p>
-</div>
-)}
-{selectedConnection.feedbackByUser2 && (
-<div>
-<h3 className="text-sm font-semibold text-emerald-300">{selectedConnection.userId2?.name || 'User 2'}'s Feedback:</h3>
-<p className="text-xs text-gray-300 italic">"{selectedConnection.feedbackByUser2}"</p>
-</div>
-)}
-</div>
-)}
-
-{/* Message Input Area (Uses MessageInput component from original code) */}
-{!isChatBlocked && <MessageInput sendMessage={handleSendMessage} />}
-{isChatBlocked && (
-<div className="mt-auto p-4 border-t border-emerald-700/50 text-center text-gray-500 text-sm italic flex-shrink-0">
-Chat is disabled for this session.
-</div>
-)}
-
-
-{/* 🛑 ACTION BUTTONS ROW (COMMENTED OUT AS REQUESTED) 🛑 */}
-{/*
-<div className="flex flex-wrap justify-center items-center gap-3 p-4 border-t border-emerald-700/50 flex-shrink-0">
-{shouldShowScheduleButton && (
-<button onClick={openScheduleModal} className="flex items-center gap-2 py-2 px-4 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition text-sm font-medium">
-<Calendar size={16} /> Reschedule
-</button>
-)}
-{shouldShowMarkButtons && (
-<>
-<button
-onClick={() => {
-if (!feedback && !isFeedbackGivenByLoggedInUser && selectedConnection?.status !== 'canceled') { 
-openFeedbackModal();
-} else {
-handleMarkSession('completed');
-}
-}}
-className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition text-sm font-medium">
-<CheckCircle size={16}/> Complete
-</button>
-<button onClick={() => handleMarkSession('canceled')} className="flex items-center gap-2 py-2 px-4 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition text-sm font-medium">
-<LucideX size={16}/> Cancel
-</button>
-</>
-)}
-
-{shouldShowFeedbackButton && (
-<button onClick={openFeedbackModal} className="flex items-center gap-2 py-2 px-4 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700 transition text-sm font-medium">
-<Star size={16}/> Provide Feedback
-</button>
-)}
-</div>
-*/}
-
-</>
-) : (
-// Themed Placeholder View
-<div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-10">
-<MessageSquare size={64} className="mb-6 opacity-30 text-emerald-600"/>
-<h2 className="text-2xl font-semibold text-white mb-2">Select a Connection</h2>
-<p className="text-base text-gray-400 max-w-sm">Choose a user from the left panel to view messages and start collaborating.</p>
-</div>
-)}
-</div>
-</div>
-
-{/* Modals (Themed and Animated) - UNCHANGED */}
-<AnimatePresence>
-{/* Feedback Modal */}
-{isFeedbackModalOpen && (
-<motion.div variants={backdropVariants} initial="hidden" animate="visible" exit="hidden" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-<motion.div variants={modalVariants} className="w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-emerald-700/50 text-white p-6 rounded-2xl shadow-xl relative">
-<button onClick={closeFeedbackModal} className="absolute top-3 right-3 text-gray-400 hover:text-emerald-300 transition"><LucideX size={24} /></button>
-<h3 className="text-xl font-bold mb-5 text-center text-emerald-400">Session Feedback</h3>
-<label className="block text-sm font-medium text-gray-300 mb-2">Rating (1-5 Stars):</label>
-<div className="flex justify-center space-x-2 mb-4">
-{[1, 2, 3, 4, 5].map(star => (<Star key={star} size={28} className={`cursor-pointer transition-colors ${rating >= star ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} onClick={() => setRating(star)}/>))}
-</div>
-<label className="block text-sm font-medium text-gray-300 mb-2">Feedback:</label>
-<textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="How was the session?" rows="4" className="w-full p-3 rounded-lg bg-black/30 border border-emerald-700/50 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"/>
-<button
-onClick={() => handleMarkSession(isSessionCompletedOrCanceled ? selectedConnection.status : 'completed')}
-className="w-full mt-6 py-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white rounded-lg font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:scale-95">
-Submit Feedback {isSessionCompletedOrCanceled ? '' : '& Mark Complete'}
-</button>
-</motion.div>
-</motion.div>
-)}
-
-{/* Schedule Modal */}
-{isScheduleModalOpen && (
-<motion.div variants={backdropVariants} initial="hidden" animate="visible" exit="hidden" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-<motion.div variants={modalVariants} className="w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-emerald-700/50 text-white p-6 rounded-2xl shadow-xl relative">
-<button onClick={closeScheduleModal} className="absolute top-3 right-3 text-gray-400 hover:text-emerald-300 transition"><LucideX size={24} /></button>
-<h2 className="text-xl font-bold mb-5 text-center text-emerald-400">Reschedule Session</h2>
-<div className="flex flex-col gap-4">
-<label className="flex flex-col font-medium text-gray-300 text-sm"><span className="mb-1">Select New Date:</span><input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="p-3 rounded-lg bg-black/30 border border-emerald-700/50 text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none" style={{ colorScheme: 'dark' }} /></label>
-<label className="flex flex-col font-medium text-gray-300 text-sm"><span className="mb-1">Select New Time:</span><input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="p-3 rounded-lg bg-black/30 border border-emerald-700/50 text-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none" style={{ colorScheme: 'dark' }} /></label>
-</div>
-<button onClick={handleScheduleSession} className="w-full mt-6 py-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white rounded-lg font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:scale-95">
-Request Reschedule
-</button>
-</motion.div>
-</motion.div>
-)}
-
-{/* Report Modal */}
-{isReportModalOpen && (
-<motion.div variants={backdropVariants} initial="hidden" animate="visible" exit="hidden" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-<motion.div variants={modalVariants} className="w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-red-700/50 text-white p-6 rounded-2xl shadow-xl relative">
-<button onClick={closeReportModal} className="absolute top-3 right-3 text-gray-400 hover:text-red-400 transition"><LucideX size={24} /></button>
-<h3 className="text-xl font-semibold text-red-400 mb-4 text-center">Report User</h3>
-<form onSubmit={handleReportSubmit} className="space-y-4">
-<div>
-<label className="text-sm font-medium text-gray-300">Reason:</label>
-<select value={reason} onChange={(e) => setReason(e.target.value)} required className="mt-1 w-full p-3 border rounded-lg bg-black/30 border-red-700/50 text-gray-200 focus:outline-none focus:ring-1 focus:ring-red-500 text-sm appearance-none">
-<option value="">Select Reason</option>
-<option value="Spam">Spam</option>
-<option value="Harassment">Harassment</option>
-<option value="Inappropriate Behavior">Inappropriate Behavior</option>
-<option value="Other">Other</option>
-</select>
-</div>
-<div>
-<label className="text-sm font-medium text-gray-300">Description:</label>
-<textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the issue" required className="mt-1 w-full p-3 border text-gray-200 rounded-lg bg-black/30 border-red-700/50 h-32 focus:outline-none focus:ring-1 focus:ring-red-500 text-sm placeholder-gray-500" />
-</div>
-<div>
-<label className="text-sm font-medium text-gray-300">Attach Screenshot (Optional):</label>
-<input type="file" onChange={(e) => setScreenshot(e.target.files[0])} accept="image/*" className="custom-file-input mt-1 w-full border rounded-lg bg-black/30 border-red-700/50 text-gray-400 text-sm"/> 
-</div>
-<button type="submit" className="w-full mt-4 py-2.5 bg-red-600 text-white rounded-lg font-semibold transition-all duration-300 hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/40 transform hover:-translate-y-0.5 active:scale-95">
-Submit Report
-</button>
-</form>
-</motion.div>
-</motion.div>
-)}
-</AnimatePresence>
-
-{/* Footer outside the main flex content */}
-<div className="flex-shrink-0">
-<Footer />
-</div>
-</div>
-<ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
-</div>
-);
+                <div className="p-4 bg-black/40 border-t border-emerald-500/10">
+                    {!isChatBlocked ? (
+                        <MessageInput sendMessage={handleSendMessage} />
+                    ) : (
+                        <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                           <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-widest">
+                              <CheckCircle size={16} /> Chat is currently archived
+                           </div>
+                           <button onClick={handleReopenSession} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase rounded-xl transition-all">
+                             <RotateCcw size={14} /> Resume Conversation
+                           </button>
+                        </div>
+                    )}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 italic gap-4">
+                <MessageSquare size={48} className="text-emerald-500/20" />
+                <p>Pick a connection to swap knowledge</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <Footer />
+      </div>
+      <ToastContainer position="bottom-right" theme="dark" />
+    </div>
+  );
 };
 
 export default ChatPage;

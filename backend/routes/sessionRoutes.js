@@ -15,6 +15,7 @@ const {verifyToken} = require('../middlewares/auth'); // Assuming you use verify
 
 // Send session request
 router.post("/request", verifyToken, sendSessionRequest);
+router.post("/complete", verifyToken, markSessionAsCompletedOrCanceled);
 
 // Accept session request
 router.post("/accept", verifyToken, acceptSessionRequest);
