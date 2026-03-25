@@ -123,6 +123,8 @@ const [statusInput, setStatusInput] = useState("");
 const [isAiLoading, setIsAiLoading] = useState(false);
 const [aiMatch, setAiMatch] = useState(null); 
 const [isAiMatchLoading, setIsAiMatchLoading] = useState(false);
+const [viewedUser, setViewedUser] = useState(null);
+const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
 const dispatch = useDispatch();
 const formatDate = (iso) => new Date(iso).toLocaleDateString();
@@ -238,6 +240,7 @@ const handleSendRequest = async (receiverId, skillToTeach, skillToLearn) => {
         });
         toast.success(`Swap request sent!`);
         setAiMatch(null); 
+        setIsViewModalOpen(false);
         fetchSessions(); 
     } catch (err) { setError("Failed to send request."); }
 };
@@ -284,7 +287,17 @@ const handleStatusUpdate = async () => {
     } catch { setError("Status failed."); }
 };
 
-const handleViewProfile = (id) => { window.location.href = `/user/${id}`; };
+const handleViewProfile = async (id) => { 
+    const token = localStorage.getItem("token");
+    try {
+        const { data } = await axios.get(`http://localhost:5000/api/users/profile/${id}`, { headers: { "x-auth-token": token } });
+        setViewedUser(data);
+        setIsViewModalOpen(true);
+    } catch {
+        toast.error("Failed to fetch profile details.");
+    }
+};
+
 const openModal = () => { setModalTeach(skillsToTeach.join(", ")); setModalLearn(skillsToLearn.join(", ")); setIsModalOpen(true); };
 const closeModal = () => setIsModalOpen(false);
 const handleStartChat = (id) => (window.location.href = `/chat/${id}`);
@@ -392,6 +405,40 @@ return (
             <div className="flex justify-end space-x-4 mt-8">
                 <button onClick={()=>setIsModalOpen(false)} className="text-gray-500 font-bold hover:text-gray-300 transition">Cancel</button>
                 <button onClick={handleUpdateSkills} className="bg-emerald-500 px-8 py-3 rounded-2xl font-black text-xs uppercase">Save</button>
+            </div>
+        </motion.div>
+    </div>
+)}
+</AnimatePresence>
+
+<AnimatePresence>
+{isViewModalOpen && viewedUser && (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[150] flex items-center justify-center p-4">
+        <motion.div initial={{y: 50, opacity: 0}} animate={{y: 0, opacity: 1}} exit={{y: 50, opacity: 0}} className="bg-gray-900 border border-emerald-500/30 p-8 rounded-3xl w-full max-w-2xl shadow-[0_0_50px_rgba(16,185,129,0.2)] relative">
+            <button onClick={()=>setIsViewModalOpen(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition"><X size={24}/></button>
+            <div className="flex flex-col items-center mb-8">
+                <img src={viewedUser.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${viewedUser.profilePicture}` : defaultAvatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-emerald-500 mb-4 object-cover" />
+                <h2 className="text-3xl font-bold text-white">{viewedUser.name}</h2>
+                <p className="text-emerald-400 italic text-sm mt-1">{viewedUser.status || "No status set"}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-black/40 p-5 rounded-2xl border border-emerald-900/30">
+                    <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest mb-3">Can Teach You</p>
+                    <div className="flex flex-wrap gap-2">
+                        {viewedUser.skillsToTeach?.map((s,i)=><span key={i} className="bg-emerald-900/30 text-emerald-300 border border-emerald-700/50 px-3 py-1 rounded-full text-xs">{s}</span>)}
+                    </div>
+                </div>
+                <div className="bg-black/40 p-5 rounded-2xl border border-teal-900/30">
+                    <p className="text-[10px] text-teal-500 uppercase font-black tracking-widest mb-3">Wants to Learn</p>
+                    <div className="flex flex-wrap gap-2">
+                        {viewedUser.skillsToLearn?.map((s,i)=><span key={i} className="bg-teal-900/30 text-teal-300 border border-teal-700/50 px-3 py-1 rounded-full text-xs">{s}</span>)}
+                    </div>
+                </div>
+            </div>
+            <div className="flex flex-col space-y-3">
+                <button onClick={() => handleSendRequest(viewedUser._id, viewedUser.skillsToTeach[0], viewedUser.skillsToLearn[0])} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center">
+                    <Plus size={18} className="mr-2"/> Send Swap Invitation
+                </button>
             </div>
         </motion.div>
     </div>
