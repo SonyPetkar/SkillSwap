@@ -2,39 +2,35 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Navbar from "../components/navbar/Navbar";
-import NotificationBell from "../components/NotificationBell";
 import {
-Linkedin,
-Github,
-Twitter,
-Edit,
-Calendar,
-Clock,
-CheckCircle,
-Circle,
-Plus,
-Sparkles, // AI Icon
-X, // Close icon
-Check, // Save icon
-Search, // Search icon
-MessageSquare, // Sessions icon
-User, // User icon
-Loader, // Loader icon
-Brain, // Added Brain icon for AI score
-TrendingUp, // Added TrendingUp for Skill Rank
+  Linkedin,
+  Github,
+  Twitter,
+  Edit,
+  Calendar,
+  Clock,
+  CheckCircle,
+  Circle,
+  Plus,
+  Sparkles,
+  X,
+  Check,
+  Search,
+  MessageSquare,
+  User,
+  Loader,
+  Brain,
+  TrendingUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch } from "react-redux";
 import { setNotifications } from "../redux/slices/notificationSlice";
 import Footer from "../components/footer/Footer";
 import defaultAvatar from "../assets/avatar.jpeg";
-import { io } from 'socket.io-client'; // Socket.IO Client
+import { io } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify'; 
 import 'react-toastify/dist/ReactToastify.css'; 
 
-/**
-* A utility component to add our animated gradient styles.
-*/
 const AnimatedGradientStyles = () => (
 <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -47,7 +43,6 @@ const AnimatedGradientStyles = () => (
 `}</style>
 );
 
-// Framer Motion Variants
 const containerVariants = {
 hidden: { opacity: 0 },
 visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
@@ -61,7 +56,6 @@ scale: 1.02,
 transition: { type: "spring", stiffness: 400, damping: 10 },
 };
 
-// --- Helper for Skill Rank Visualization ---
 const SkillLevelIndicator = ({ teachSkills, learnSkills }) => {
 const totalSkills = teachSkills.length + learnSkills.length;
 let level = 'Novice';
@@ -81,7 +75,6 @@ return (
 );
 };
 
-// --- AI Match Profile Card ---
 const AiMatchCard = ({ match, handleViewProfile, handleSendRequest, fetchAiMatch }) => {
     if (!match) return null;
     const avatarUrl = match.profilePicture 
@@ -210,29 +203,21 @@ useEffect(() => {
     if (user && strengthChecks.teach && strengthChecks.learn && aiMatch === null) fetchAiMatch();
 }, [user, strengthChecks.teach, strengthChecks.learn, aiMatch]);
 
-// --- ACTION HANDLERS ---
-
 const handleMarkAsDone = async (id) => {
     const token = localStorage.getItem("token");
-    const sessionToMove = acceptedSessions.find(s => s._id === id);
-    if (!sessionToMove) return;
-
-    // 🚀 THE FIX: Clear from local 'Accepted' list IMMEDIATELY to prevent dual entries
-    setAcceptedSessions(prev => prev.filter(s => s._id !== id));
-
     try {
         await axios.post("http://localhost:5000/api/sessions/mark-session", { 
             sessionId: id, status: 'completed', rating: 5, feedback: "Verified" 
         }, { headers: { "x-auth-token": token } });
 
+        setAcceptedSessions(prev => prev.filter(s => s._id !== id));
         toast.success("Session completed!");
-        // Change tab to completed so user sees it moved
         setActiveTab("completed");
-        await fetchSessions(); // Final sync with DB
+        await fetchSessions();
         
     } catch (err) {
         toast.error("Failed to mark done.");
-        fetchSessions(); // Restore on error
+        fetchSessions();
     }
 };
 
@@ -240,7 +225,6 @@ const handleSendRequest = async (receiverId, skillToTeach, skillToLearn) => {
     const token = localStorage.getItem("token");
     if (!token) return; 
 
-    // 🚀 FIX: Payload matches backend controller requirements (userId2, skill, date, time)
     const swapPayload = {
         userId2: receiverId,
         skill: skillToTeach,
@@ -265,13 +249,13 @@ const handleAccept = async (id) => {
         setPendingSessions(ps => ps.filter(s => s._id !== id));
         fetchSessions();
         toast.success("Accepted!");
+        setActiveTab("upcoming");
     } catch { toast.error("Failed."); }
 };
 
 const handleUpdateSkills = async () => {
     const token = localStorage.getItem("token");
     
-    // 🚀 VALIDATION: Check if either field is empty or just spaces
     if (!modalTeach.trim() || !modalLearn.trim()) {
         toast.error("Skills cannot be empty! Please provide both teaching and learning skills.");
         return;
@@ -334,7 +318,7 @@ return (
 
     <motion.div variants={itemVariants} whileHover={cardHoverEffect} className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8 bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50 shadow-2xl">
         <div className="lg:col-span-2 flex items-center space-x-6 relative">
-            <div className="absolute top-0 right-0 flex space-x-2"><NotificationBell /><button onClick={handleEditProfile} className="bg-emerald-500 p-2 rounded-full"><Edit size={16} /></button></div>
+            <div className="absolute top-0 right-0 flex space-x-2"><button onClick={handleEditProfile} className="bg-emerald-500 p-2 rounded-full hover:bg-emerald-600 transition"><Edit size={16} /></button></div>
             <img src={user.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}` : defaultAvatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-emerald-500 object-cover" />
             <div>
                 <h2 className="text-3xl font-bold">{user.name}</h2>
@@ -364,7 +348,7 @@ return (
                 {['pending', 'upcoming', 'completed'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition ${activeTab === tab ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400'}`}>{tab}</button>)}
             </div>
             <div className="overflow-y-auto session-list space-y-3 flex-1 pr-2">
-                {(activeTab === "pending" ? pendingSessions : activeTab === "upcoming" ? acceptedSessions : completedSessions).map((s) => (
+                {(activeTab === "pending" ? pendingSessions.filter(s => s.status === "pending") : activeTab === "upcoming" ? acceptedSessions.filter(s => s.status === "accepted") : completedSessions.filter(s => s.status === "completed")).map((s) => (
                     <div key={s._id} className="bg-gray-800/40 p-4 rounded-xl flex justify-between items-center border border-emerald-700/20">
                         <div><p className="font-bold text-white text-sm">{s.skill}</p><p className="text-[10px] text-emerald-400 uppercase tracking-widest">{formatDate(s.sessionDate)}</p></div>
                         <div className="flex space-x-2">
