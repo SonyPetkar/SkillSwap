@@ -42,9 +42,16 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     default: "" 
   },
+  reportCount: {
+    type: Number,
+    default: 0
+  },
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
 }, {
-  timestamps: true    // adds createdAt & updatedAt
-  
+  timestamps: true    
 });
 
 module.exports = mongoose.model('User', UserSchema);

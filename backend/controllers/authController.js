@@ -43,8 +43,8 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
 
-    if (user.status === 'blocked') {
-      return res.status(403).json({ msg: 'Your account has been blocked.' });
+    if (user.isBlocked) {
+      return res.status(403).json({ msg: 'Your account has been blocked due to multiple reports.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);

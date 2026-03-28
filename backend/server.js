@@ -34,6 +34,7 @@ const io = socketIo(server, {
   },
 });
 
+app.set('socketio', io);
 const sessionSocket = io.of('/sessions');
 const notificationSocket = io.of('/notifications');
 const chatSocket = io.of('/chat');

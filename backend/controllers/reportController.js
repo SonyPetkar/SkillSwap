@@ -1,30 +1,27 @@
-const mongoose = require('mongoose'); // Ensure mongoose is imported
+const mongoose = require('mongoose'); 
 const Report = require('../models/Report');
-const Session = require('../models/Session'); // Session model to get the session details
+const Session = require('../models/Session'); 
+const User = require('../models/User');
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, './uploads/report-images'); // Path to store uploaded screenshots
+    cb(null, './uploads/report-images'); 
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Unique filename using timestamp
+    cb(null, Date.now() + path.extname(file.originalname)); 
   },
 });
 
 const upload = multer({ storage: storage });
 
-// Create a report
 const createReport = async (req, res) => {
   try {
     const { reason, description, reporter, targetUser, session } = req.body;
 
-    // Log for debugging
     console.log('Received Report Data:', req.body);
 
-    // Ensure that valid ObjectIds are passed for reporter, targetUser, and session
     if (!mongoose.Types.ObjectId.isValid(reporter)) {
       return res.status(400).json({ message: 'Invalid reporter ID' });
     }
@@ -35,13 +32,11 @@ const createReport = async (req, res) => {
       return res.status(400).json({ message: 'Invalid session ID' });
     }
 
-    // Ensure session exists
     const existingSession = await Session.findById(session);
     if (!existingSession) {
       return res.status(400).json({ message: 'Session not found' });
     }
 
-    // Create a new report instance
     const report = new Report({
       reporter,
       targetUser,
@@ -50,13 +45,33 @@ const createReport = async (req, res) => {
       description,
     });
 
-    // If a screenshot was uploaded, store its file path
     if (req.file) {
       report.screenshot = `/uploads/report-images/${req.file.filename}`;
     }
 
-    // Save the report to the database
     await report.save();
+
+    const userToUpdate = await User.findById(targetUser);
+    if (userToUpdate) {
+      userToUpdate.reportCount += 1;
+
+      const io = req.app.get('socketio');
+
+      if (userToUpdate.reportCount >= 5) {
+        userToUpdate.isBlocked = true;
+        await userToUpdate.save();
+        if (io) {
+          io.of('/chat').to(targetUser).emit('account_terminated');
+        }
+        return res.status(201).json({ message: 'Report submitted. User has been suspended.', report });
+      } else {
+        await userToUpdate.save();
+        if (io) {
+          io.of('/chat').to(targetUser).emit('receive_warning');
+        }
+      }
+    }
+
     res.status(201).json({ message: 'Report submitted successfully', report });
   } catch (error) {
     console.error('Error submitting report:', error);

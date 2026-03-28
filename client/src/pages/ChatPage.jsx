@@ -8,7 +8,7 @@ import MessageInput from '../components/chat/MessageInput';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Calendar, AlertTriangle, X as LucideX, Menu as LucideMenu, 
-  Star, CheckCircle, MessageSquare, Video, Archive, RotateCcw, Unlock
+  Star, CheckCircle, MessageSquare, Video, Archive, RotateCcw, Unlock, ShieldAlert
 } from 'lucide-react'; 
 import Footer from "../components/footer/Footer";
 import { motion, AnimatePresence } from 'framer-motion'; 
@@ -43,13 +43,13 @@ const ChatPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const messagesEndRef = useRef(null); 
   const [loggedInUser, setLoggedInUser] = useState(null); 
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     setLoggedInUser(user);
   }, []); 
 
-  // 🚀 THE FIX: Data deduplication logic
   const fetchConnections = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -59,7 +59,6 @@ const ChatPage = () => {
         axios.get('http://localhost:5000/api/sessions/completed', { headers: { 'x-auth-token': token } })
       ]);
       
-      // Merge and filter by unique ID to prevent double tabs
       const rawChats = [...accepted.data, ...completed.data];
       const uniqueChatsMap = new Map();
       rawChats.forEach(chat => uniqueChatsMap.set(chat._id, chat));
@@ -82,6 +81,17 @@ const ChatPage = () => {
     const newSocket = io(`${socketProtocol}//localhost:5000/chat`, { query: { userId: loggedInUser._id }, withCredentials: true });
     setSocket(newSocket);
     newSocket.on('connect', () => { if (sessionId) newSocket.emit('join_room', sessionId); });
+    
+    newSocket.on('receive_warning', () => {
+      setShowWarningModal(true);
+    });
+
+    newSocket.on('account_terminated', () => {
+      toast.error("Your account has been suspended due to multiple reports.");
+      localStorage.clear();
+      setTimeout(() => navigate('/login'), 3000);
+    });
+
     newSocket.on('receive_message', (incomingMessage) => {
       if (selectedConnection && incomingMessage.conversationId === selectedConnection._id) {
         if (incomingMessage.senderId._id !== loggedInUser._id) { 
@@ -131,6 +141,42 @@ const ChatPage = () => {
         toast.success("Chat reopened!");
         fetchConnections(); 
     } catch (err) { toast.error("Failed to reopen."); }
+  };
+
+  const handleReportUser = async () => {
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for the report.");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    
+    const reportedId = selectedConnection.userId1?._id === loggedInUser._id 
+      ? selectedConnection.userId2?._id 
+      : selectedConnection.userId1?._id;
+  
+    const reportData = {
+      reporter: loggedInUser._id,    
+      targetUser: reportedId,        
+      session: selectedConnection._id, 
+      reason: reason,
+      description: description
+    };
+
+    try {
+      await axios.post("http://localhost:5000/api/reports", reportData, { 
+        headers: { "x-auth-token": token } 
+      });
+      
+      toast.warn("Report submitted. Our team will review the behavior.");
+      setIsReportModalOpen(false);
+      setReason('');
+      setDescription('');
+    } catch (err) {
+      // Log the specific error message from the backend if available
+      const errorMsg = err.response?.data?.message || "Failed to submit report.";
+      toast.error(errorMsg);
+      console.error('Report Error:', err.response?.data);
+    }
   };
 
   const isChatBlocked = selectedConnection?.status === 'completed' || selectedConnection?.status === 'canceled';
@@ -187,6 +233,7 @@ const ChatPage = () => {
                      </div>
                   </div>
                   <div className="flex gap-2">
+                    <button onClick={() => setIsReportModalOpen(true)} className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded-xl transition-all"><AlertTriangle size={18}/></button>
                     <button onClick={() => window.open(`https://meet.jit.si/${selectedConnection._id}`, '_blank')} className="p-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 rounded-xl transition-all"><Video size={18}/></button>
                     {!isChatBlocked ? (
                         <button onClick={handleArchiveSession} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl transition-all"><Archive size={18}/></button>
@@ -232,6 +279,47 @@ const ChatPage = () => {
         </div>
         <Footer />
       </div>
+
+      <AnimatePresence>
+        {isReportModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-gray-900 border border-red-500/30 p-8 rounded-3xl w-full max-w-md shadow-2xl">
+              <div className="flex items-center gap-3 mb-6 text-red-500">
+                <ShieldAlert size={24} />
+                <h2 className="text-xl font-bold uppercase tracking-tighter">Report User</h2>
+              </div>
+              <div className="space-y-4">
+                <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (e.g., Misbehavior, Spam)" className="w-full bg-black/40 border border-gray-700 p-4 rounded-xl text-white outline-none focus:border-red-500 transition-all" />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detailed description..." rows={4} className="w-full bg-black/40 border border-gray-700 p-4 rounded-xl text-white outline-none focus:border-red-500 transition-all resize-none" />
+              </div>
+              <div className="flex justify-end gap-4 mt-8">
+                <button onClick={() => setIsReportModalOpen(false)} className="text-gray-500 font-bold hover:text-gray-300 transition-all">Cancel</button>
+                <button onClick={handleReportUser} className="bg-red-600 hover:bg-red-500 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all">Submit Report</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showWarningModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="bg-gray-900 border-2 border-amber-500 p-10 rounded-[2.5rem] w-full max-w-lg shadow-[0_0_50px_rgba(245,158,11,0.2)] text-center">
+              <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle size={40} className="text-amber-500" />
+              </div>
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Official Warning</h2>
+              <p className="text-gray-300 leading-relaxed mb-8">
+                A report has been filed against your behavior. Please follow the platform guidelines, behave professionally, and respect the tutor and their time. Multiple reports (5+) will lead to permanent account termination.
+              </p>
+              <button onClick={() => setShowWarningModal(false)} className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-4 rounded-2xl uppercase tracking-widest transition-all">
+                I Understand
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <ToastContainer position="bottom-right" theme="dark" />
     </div>
   );
