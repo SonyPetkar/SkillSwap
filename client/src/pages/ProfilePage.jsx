@@ -133,7 +133,10 @@ const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digi
 useEffect(() => {
     const fetchUserProfile = async () => {
         const token = localStorage.getItem("token");
-        if (!token) return;
+        if (!token) {
+            window.location.href = "/login";
+            return;
+        }
         try {
             const userRes = await axios.get("http://localhost:5000/api/users/profile", { headers: { "x-auth-token": token } });
             setUser(userRes.data);
@@ -142,7 +145,14 @@ useEffect(() => {
             setStatusInput(userRes.data.status || "");
             const notifRes = await axios.get(`http://localhost:5000/api/notifications/${userRes.data._id}`, { headers: { "x-auth-token": token } });
             if (Array.isArray(notifRes.data)) { dispatch(setNotifications(notifRes.data)); }
-        } catch { setError("Failed to load profile."); }
+        } catch (err) {
+            if (err.response && err.response.status === 401) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/login";
+            }
+            setError("Failed to load profile.");
+        }
     };
     fetchUserProfile();
 }, [dispatch]);
