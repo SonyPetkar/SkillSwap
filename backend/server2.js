@@ -8,6 +8,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 dotenv.config();
+
 const matchmaking = require('./routes/matchmaking');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -16,10 +17,9 @@ const sessionRoutes = require('./routes/sessionRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const reportRoutes = require('./routes/reportRoutes');
-
 const chatRoutes = require('./routes/chatRoutes');
-const { setSocketIO: setChatSocketIO } = require('./controllers/chatController');
 
+const { setSocketIO: setChatSocketIO } = require('./controllers/chatController');
 const { setSocketIO: setSessionSocketIO } = require('./controllers/sessionController');
 const { setSocket: setNotificationSocketIO } = require('./controllers/notificationController');
 
@@ -34,6 +34,7 @@ const io = socketIo(server, {
   },
 });
 
+app.set('socketio', io);
 const sessionSocket = io.of('/sessions');
 const notificationSocket = io.of('/notifications');
 const chatSocket = io.of('/chat');
@@ -49,9 +50,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Optimized static file serving
+// This allows you to access images at: http://localhost:5000/uploads/profile-pictures/image.jpg
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads/profile-pictures', express.static(path.join(__dirname, 'uploads/profile-pictures')));
-app.use('/uploads/message-uploads', express.static(path.join(__dirname, 'uploads/message-uploads')));
 
 mongoose
   .connect(process.env.MONGO_URI)

@@ -54,10 +54,35 @@ app.use(express.urlencoded({ extended: true }));
 // This allows you to access images at: http://localhost:5000/uploads/profile-pictures/image.jpg
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Auto-seeding logic for the admin account
+const seedAdmin = async () => {
+  try {
+    const adminExists = await User.findOne({ email: 'sonypetkar1911@gmail.com' });
+    if (!adminExists) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Sony@123', salt);
+      
+      await User.create({
+        name: 'Sony Petkar',
+        email: 'sonypetkar1911@gmail.com',
+        password: hashedPassword,
+        role: 'admin' 
+      });
+      console.log('Admin account automatically seeded.');
+    } else {
+      console.log('Admin account already exists.');
+    }
+  } catch (error) {
+    console.error('Error auto-seeding admin:', error);
+  }
+};
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
+    // Run the seeder only after the database connects
+    await seedAdmin(); 
   })
   .catch(err => console.error('Error connecting to MongoDB:', err));
 

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; 
 import axios from "axios";
 import { Mail, Lock, Eye, EyeOff, Loader } from "lucide-react";
 import { motion } from "framer-motion";
@@ -25,6 +26,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate(); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,10 +49,13 @@ const LoginPage = () => {
       localStorage.setItem('user', JSON.stringify({
         name: response.data.name,
         email: response.data.email,
-        _id: response.data.id,
+        _id: response.data.id || response.data._id,
+        role: response.data.role, 
       }));
 
-      window.location.href = '/profile';
+      // Send EVERYONE to the normal app experience first.
+      // Admins can navigate to the admin panel using the button on their profile.
+      navigate('/profile'); 
 
     } catch (err) {
       const backendErrors = err.response?.data?.errors;

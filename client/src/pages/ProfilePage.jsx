@@ -313,6 +313,7 @@ const closeModal = () => setIsModalOpen(false);
 const handleStartChat = (id) => (window.location.href = `/chat/${id}`);
 const handleEditProfile = () => (window.location.href = "/profile-settings");
 const handleSearchPage = () => (window.location.href = "/search");
+const handleAdminPanel = () => (window.location.href = "/admin/users"); // Added logic for admin panel navigation
 
 const handleAiSuggest = async () => {
     if (!modalTeach) { setError("Add teaching skills first."); return; }
@@ -341,7 +342,18 @@ return (
 
     <motion.div variants={itemVariants} whileHover={cardHoverEffect} className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8 bg-black/30 backdrop-blur-xl rounded-2xl p-6 border border-emerald-700/50 shadow-2xl">
         <div className="lg:col-span-2 flex items-center space-x-6 relative">
-            <div className="absolute top-0 right-0 flex space-x-2"><button onClick={handleEditProfile} className="bg-emerald-500 p-2 rounded-full hover:bg-emerald-600 transition"><Edit size={16} /></button></div>
+            <div className="absolute top-0 right-0 flex space-x-2">
+                {/* Admin Panel Access Button - Only visible if role is admin */}
+                {user?.role === 'admin' && (
+                    <button 
+                        onClick={handleAdminPanel} 
+                        className="bg-purple-600 px-4 py-2 flex items-center rounded-full font-bold text-xs uppercase hover:bg-purple-700 transition"
+                    >
+                        Admin Panel
+                    </button>
+                )}
+                <button onClick={handleEditProfile} className="bg-emerald-500 p-2 rounded-full hover:bg-emerald-600 transition"><Edit size={16} /></button>
+            </div>
             <img src={user.profilePicture ? `http://localhost:5000/uploads/profile-pictures/${user.profilePicture}` : defaultAvatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-emerald-500 object-cover" />
             <div>
                 <h2 className="text-3xl font-bold">{user.name}</h2>
