@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Eye, LogOut, ArrowLeft, X, Linkedin, User } from 'lucide-react';
+import { Trash2, Eye, LogOut, ArrowLeft, X, Linkedin, User, AlertTriangle } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 // Ensure you have this placeholder image available in your assets folder
@@ -103,6 +103,7 @@ const AdminDashboard = () => {
                 <th className="p-5 font-bold text-emerald-400 uppercase tracking-wider text-sm">Name</th>
                 <th className="p-5 font-bold text-emerald-400 uppercase tracking-wider text-sm">Email</th>
                 <th className="p-5 font-bold text-emerald-400 uppercase tracking-wider text-sm">Role</th>
+                <th className="p-5 font-bold text-red-400 uppercase tracking-wider text-sm text-center">Reports</th>
                 <th className="p-5 font-bold text-emerald-400 uppercase tracking-wider text-sm text-center">Actions</th>
               </tr>
             </thead>
@@ -128,6 +129,18 @@ const AdminDashboard = () => {
                       {user.role}
                     </span>
                   </td>
+                  
+                  {/* NEW: Reports Indicator in Table */}
+                  <td className="p-5 text-center">
+                    {user.reportCount > 0 ? (
+                      <span className="bg-red-900/50 text-red-400 border border-red-700/50 px-3 py-1 rounded-full text-xs font-bold flex items-center justify-center gap-1 w-max mx-auto">
+                        <AlertTriangle size={12} /> {user.reportCount}
+                      </span>
+                    ) : (
+                      <span className="text-gray-600 text-xs">-</span>
+                    )}
+                  </td>
+
                   <td className="p-5 flex justify-center gap-3">
                     <button 
                       onClick={() => setSelectedUser(user)}
@@ -149,7 +162,7 @@ const AdminDashboard = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-500">No users found.</td>
+                  <td colSpan="5" className="p-8 text-center text-gray-500">No users found.</td>
                 </tr>
               )}
             </tbody>
@@ -262,6 +275,31 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* NEW: Complaints / Reports Section */}
+                {selectedUser.reports && selectedUser.reports.length > 0 && (
+                  <div className="mt-6 bg-red-950/20 p-5 rounded-xl border border-red-900/30">
+                    <p className="text-[10px] text-red-500 uppercase font-black tracking-widest mb-4 flex items-center gap-2">
+                      <AlertTriangle size={14} /> User Complaints ({selectedUser.reports.length})
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {selectedUser.reports.map((report, index) => (
+                        <div key={index} className="bg-black/40 p-4 rounded-lg border border-red-900/20">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="text-sm font-bold text-red-400">Reason: {report.reason}</p>
+                            <span className="text-[10px] text-gray-500">
+                              Reported by: {report.reporter?.name || 'Unknown User'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-300 leading-relaxed bg-black/20 p-3 rounded border border-white/5">
+                            {report.description || "No detailed description provided."}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </motion.div>
