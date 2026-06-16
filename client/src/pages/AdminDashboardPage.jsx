@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Eye, LogOut, ArrowLeft, X, Linkedin, User, AlertTriangle } from 'lucide-react';
+import { Trash2, Eye, LogOut, ArrowLeft, X, Linkedin, User, AlertTriangle, TrendingUp, Activity, ChevronRight } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
-// Ensure you have this placeholder image available in your assets folder
 import defaultAvatar from '../assets/avatar.jpeg'; 
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null); 
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [matchStats, setMatchStats] = useState([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [selectedSkillForDetails, setSelectedSkillForDetails] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +32,52 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Error fetching users", error);
     }
+  };
+
+  const calculateDynamicStats = (allUsers) => {
+    const teachingCounts = {};
+    const learningCounts = {};
+
+    allUsers.forEach(user => {
+      if (user.skillsToTeach && Array.isArray(user.skillsToTeach)) {
+        user.skillsToTeach.forEach(skill => {
+          teachingCounts[skill] = (teachingCounts[skill] || 0) + 1;
+        });
+      }
+      if (user.skillsToLearn && Array.isArray(user.skillsToLearn)) {
+        user.skillsToLearn.forEach(skill => {
+          learningCounts[skill] = (learningCounts[skill] || 0) + 1;
+        });
+      }
+    });
+
+    const combinedSkills = new Set([...Object.keys(teachingCounts), ...Object.keys(learningCounts)]);
+    const dynamicStats = [];
+
+    combinedSkills.forEach(skill => {
+      const teachCount = teachingCounts[skill] || 0;
+      const learnCount = learningCounts[skill] || 0;
+      if (teachCount > 0 || learnCount > 0) {
+        dynamicStats.push({
+          skill,
+          teachCount,
+          learnCount,
+          totalCount: teachCount + learnCount,
+          teachers: allUsers.filter(u => u.skillsToTeach?.includes(skill)),
+          learners: allUsers.filter(u => u.skillsToLearn?.includes(skill))
+        });
+      }
+    });
+
+    return dynamicStats.sort((a, b) => b.totalCount - a.totalCount);
+  };
+
+  const openStatsModal = () => {
+    setIsLoadingStats(true);
+    const stats = calculateDynamicStats(users);
+    setMatchStats(stats);
+    setIsStatsModalOpen(true);
+    setIsLoadingStats(false);
   };
 
   const handleDelete = async (id) => {
@@ -55,7 +105,6 @@ const AdminDashboard = () => {
     navigate('/profile');
   };
 
-  // HELPER: Formats the image URL correctly to fix broken image links
   const getImageUrl = (profilePicture) => {
     if (!profilePicture) return defaultAvatar;
     if (profilePicture.startsWith('http')) return profilePicture;
@@ -70,7 +119,6 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-emerald-900 to-black text-gray-200 p-8 font-['Inter']">
       
-      {/* Header & Navigation */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="flex items-center gap-4">
           <button 
@@ -85,16 +133,25 @@ const AdminDashboard = () => {
           </h1>
         </div>
         
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-red-600/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold transition duration-300 shadow-lg shadow-red-900/20"
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={openStatsModal}
+            className="flex items-center gap-2 bg-indigo-600/80 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition duration-300 shadow-lg shadow-indigo-900/20"
+          >
+            <TrendingUp size={18} />
+            Match Reports
+          </button>
+          
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-2 bg-red-600/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold transition duration-300 shadow-lg shadow-red-900/20"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
       </div>
 
-      {/* Main Table Area */}
       <div className="max-w-7xl mx-auto bg-black/40 backdrop-blur-xl rounded-2xl shadow-2xl border border-emerald-700/50 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -130,7 +187,6 @@ const AdminDashboard = () => {
                     </span>
                   </td>
                   
-                  {/* NEW: Reports Indicator in Table */}
                   <td className="p-5 text-center">
                     {user.reportCount > 0 ? (
                       <span className="bg-red-900/50 text-red-400 border border-red-700/50 px-3 py-1 rounded-full text-xs font-bold flex items-center justify-center gap-1 w-max mx-auto">
@@ -170,7 +226,148 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Detailed User Information Modal */}
+      <AnimatePresence>
+        {isStatsModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+              className="bg-gray-900 border border-indigo-700/50 p-8 rounded-3xl w-full max-w-4xl shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col"
+            >
+              <button 
+                onClick={() => {
+                  if (selectedSkillForDetails) {
+                    setSelectedSkillForDetails(null);
+                  } else {
+                    setIsStatsModalOpen(false);
+                  }
+                }} 
+                className="absolute top-6 right-6 text-gray-500 hover:text-white transition bg-gray-800 p-2 rounded-full z-10"
+              >
+                {selectedSkillForDetails ? <ArrowLeft size={20} /> : <X size={20} />}
+              </button>
+              
+              <div className="flex items-center gap-3 mb-6 flex-shrink-0">
+                <div className="p-3 bg-indigo-500/20 rounded-xl">
+                  <Activity size={28} className="text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white uppercase tracking-wider">
+                    {selectedSkillForDetails ? `Details: ${selectedSkillForDetails.skill}` : 'Platform Skill Distribution'}
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    {selectedSkillForDetails ? 'Users mapped to this skill' : 'Live data based on current user profiles'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto session-list flex-1 pr-2">
+                {isLoadingStats ? (
+                  <div className="py-12 flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                  </div>
+                ) : selectedSkillForDetails ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                       <div className="bg-emerald-950/20 p-4 rounded-xl border border-emerald-900/30 flex items-center justify-between">
+                           <span className="text-xs text-emerald-500 uppercase font-black tracking-widest">Total Teachers</span>
+                           <span className="text-2xl font-black text-emerald-400">{selectedSkillForDetails.teachCount}</span>
+                       </div>
+                       <div className="bg-teal-950/20 p-4 rounded-xl border border-teal-900/30 flex items-center justify-between">
+                           <span className="text-xs text-teal-500 uppercase font-black tracking-widest">Total Learners</span>
+                           <span className="text-2xl font-black text-teal-400">{selectedSkillForDetails.learnCount}</span>
+                       </div>
+                    </div>
+
+                    <div className="bg-black/40 rounded-xl border border-gray-800 overflow-hidden">
+                       <h3 className="bg-emerald-900/40 p-3 text-sm font-bold text-emerald-400 uppercase tracking-widest border-b border-emerald-900/50">Users Teaching {selectedSkillForDetails.skill}</h3>
+                       <div className="p-4 space-y-3">
+                           {selectedSkillForDetails.teachers.length > 0 ? (
+                               selectedSkillForDetails.teachers.map(t => (
+                                   <div key={`t-${t._id}`} className="flex items-center gap-3 bg-white/5 p-2 rounded-lg">
+                                       <img src={getImageUrl(t.profilePicture)} alt={t.name} className="w-8 h-8 rounded-full object-cover border border-emerald-500/30" />
+                                       <div>
+                                           <p className="text-sm font-bold text-white">{t.name}</p>
+                                           <p className="text-xs text-gray-400">{t.email}</p>
+                                       </div>
+                                   </div>
+                               ))
+                           ) : (
+                               <p className="text-sm text-gray-500 italic">No users currently teaching this skill.</p>
+                           )}
+                       </div>
+                    </div>
+
+                    <div className="bg-black/40 rounded-xl border border-gray-800 overflow-hidden">
+                       <h3 className="bg-teal-900/40 p-3 text-sm font-bold text-teal-400 uppercase tracking-widest border-b border-teal-900/50">Users Learning {selectedSkillForDetails.skill}</h3>
+                       <div className="p-4 space-y-3">
+                           {selectedSkillForDetails.learners.length > 0 ? (
+                               selectedSkillForDetails.learners.map(l => (
+                                   <div key={`l-${l._id}`} className="flex items-center gap-3 bg-white/5 p-2 rounded-lg">
+                                       <img src={getImageUrl(l.profilePicture)} alt={l.name} className="w-8 h-8 rounded-full object-cover border border-teal-500/30" />
+                                       <div>
+                                           <p className="text-sm font-bold text-white">{l.name}</p>
+                                           <p className="text-xs text-gray-400">{l.email}</p>
+                                       </div>
+                                   </div>
+                               ))
+                           ) : (
+                               <p className="text-sm text-gray-500 italic">No users currently learning this skill.</p>
+                           )}
+                       </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {matchStats.length > 0 ? matchStats.map((stat, index) => {
+                      const maxCount = Math.max(...matchStats.map(s => s.totalCount));
+                      const widthPercent = `${(stat.totalCount / maxCount) * 100}%`;
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          onClick={() => setSelectedSkillForDetails(stat)}
+                          className="bg-black/40 p-4 rounded-xl border border-gray-800 relative overflow-hidden cursor-pointer hover:border-indigo-500/50 transition-colors group"
+                        >
+                          <div 
+                            className="absolute left-0 top-0 bottom-0 bg-indigo-900/20 z-0 transition-all duration-1000 group-hover:bg-indigo-900/40"
+                            style={{ width: widthPercent }}
+                          ></div>
+                          
+                          <div className="relative z-10 flex justify-between items-center">
+                            <div>
+                                <p className="text-lg font-bold text-indigo-300 flex items-center gap-2">
+                                    {stat.skill}
+                                    <ChevronRight size={16} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </p>
+                                <div className="flex gap-4 mt-1 text-xs font-medium">
+                                    <span className="text-emerald-400">{stat.teachCount} Teaching</span>
+                                    <span className="text-teal-400">{stat.learnCount} Learning</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-400 uppercase font-bold tracking-widest hidden sm:inline">Total Impact</span>
+                              <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full font-black text-xl border border-indigo-500/30">
+                                {stat.totalCount}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                        <div className="text-center py-8 text-gray-500 italic border border-dashed border-gray-700 rounded-xl">
+                            No skills data available in the current database.
+                        </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -189,7 +386,6 @@ const AdminDashboard = () => {
               
               <h2 className="text-2xl font-bold mb-6 text-white uppercase tracking-wider">User Profile</h2>
               
-              {/* Header: Avatar, Name, Email, Role */}
               <div className="flex items-center gap-5 mb-8 pb-8 border-b border-gray-800">
                 <img 
                   src={getImageUrl(selectedUser.profilePicture)} 
@@ -215,7 +411,6 @@ const AdminDashboard = () => {
               </div>
               
               <div className="space-y-6">
-                {/* General Info Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-black/40 p-5 rounded-xl border border-gray-800">
                     <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2">Current Status</p>
@@ -243,7 +438,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Skills Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-emerald-950/20 p-5 rounded-xl border border-emerald-900/30">
                     <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest mb-3">Teaching Skills</p>
@@ -276,7 +470,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* NEW: Complaints / Reports Section */}
                 {selectedUser.reports && selectedUser.reports.length > 0 && (
                   <div className="mt-6 bg-red-950/20 p-5 rounded-xl border border-red-900/30">
                     <p className="text-[10px] text-red-500 uppercase font-black tracking-widest mb-4 flex items-center gap-2">
