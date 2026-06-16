@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Eye, LogOut, ArrowLeft, X, Linkedin, User, AlertTriangle, TrendingUp, Activity, ChevronRight } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import defaultAvatar from '../assets/avatar.jpeg'; 
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null); 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [matchStats, setMatchStats] = useState([]);
@@ -18,6 +18,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchSessions();
   }, []);
 
   const fetchUsers = async () => {
@@ -31,6 +32,19 @@ const AdminDashboard = () => {
       setUsers(data.users); 
     } catch (error) {
       console.error("Error fetching users", error);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+      const { data } = await axios.get('http://localhost:5000/api/admin/sessions', config);
+      setSessions(Array.isArray(data) ? data : (data.sessions || []));
+    } catch (error) {
+      console.error("Error fetching sessions", error);
     }
   };
 
@@ -114,6 +128,73 @@ const AdminDashboard = () => {
       return `http://localhost:5000/${cleanPath}`;
     }
     return `http://localhost:5000/uploads/profile-pictures/${cleanPath}`;
+  };
+
+  const renderSkillSessions = () => {
+    if (!selectedSkillForDetails) return null;
+    
+    const selectedSkillTarget = selectedSkillForDetails.skill?.toLowerCase().trim();
+
+    const skillSessions = sessions.filter(s => {
+      const sSkill = (s.skill || '').toLowerCase().trim();
+      const sTarget = (s.skillTarget || '').toLowerCase().trim();
+      return (sSkill === selectedSkillTarget || sTarget === selectedSkillTarget) && s.status !== 'canceled';
+    });
+
+    const now = new Date();
+    const todayStr = now.toDateString();
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    const sessionsToday = skillSessions.filter(s => new Date(s.connectionDate || s.createdAt || s.sessionDate).toDateString() === todayStr);
+    const sessionsYesterday = skillSessions.filter(s => new Date(s.connectionDate || s.createdAt || s.sessionDate).toDateString() === yesterdayStr);
+    const sessions7Days = skillSessions.filter(s => (now - new Date(s.connectionDate || s.createdAt || s.sessionDate)) / (1000 * 60 * 60 * 24) <= 7);
+    const sessions6Months = skillSessions.filter(s => (now - new Date(s.connectionDate || s.createdAt || s.sessionDate)) / (1000 * 60 * 60 * 24) <= 180);
+
+    return (
+      <div className="bg-black/40 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="bg-indigo-900/40 p-3 flex flex-wrap justify-between items-center border-b border-indigo-900/50 gap-2">
+          <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest">Connected Pairs</h3>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <span className="bg-indigo-500/20 px-2 py-1 rounded text-indigo-300 font-bold tracking-wider">Today: {sessionsToday.length}</span>
+            <span className="bg-indigo-500/20 px-2 py-1 rounded text-indigo-300 font-bold tracking-wider">Yesterday: {sessionsYesterday.length}</span>
+            <span className="bg-indigo-500/20 px-2 py-1 rounded text-indigo-300 font-bold tracking-wider">7 Days: {sessions7Days.length}</span>
+            <span className="bg-indigo-500/20 px-2 py-1 rounded text-indigo-300 font-bold tracking-wider">6 Months: {sessions6Months.length}</span>
+          </div>
+        </div>
+        <div className="p-4 space-y-3">
+          {skillSessions.length > 0 ? skillSessions.map((session, idx) => {
+            const u1Id = session.requesterId?._id || session.requesterId || session.userId1?._id || session.userId1;
+            const u2Id = session.receiverId?._id || session.receiverId || session.userId2?._id || session.userId2;
+            const user1 = users.find(u => u._id === u1Id) || session.requesterId || session.userId1;
+            const user2 = users.find(u => u._id === u2Id) || session.receiverId || session.userId2;
+
+            if (!user1 || !user2) return null;
+
+            return (
+              <div key={session._id || idx} className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
+                <div className="flex items-center gap-3 w-2/5">
+                  <img src={getImageUrl(user1.profilePicture)} alt={user1.name} className="w-8 h-8 rounded-full object-cover border border-emerald-500/30" />
+                  <p className="text-sm font-bold text-white truncate">{user1.name || 'Unknown'}</p>
+                </div>
+                <div className="text-gray-500 w-1/5 text-center flex flex-col items-center">
+                  <Activity size={16} className="text-indigo-400 mb-1" />
+                  <span className="text-[10px] uppercase font-black tracking-widest text-indigo-500">{session.status || 'Active'}</span>
+                </div>
+                <div className="flex items-center justify-end gap-3 w-2/5 text-right">
+                  <p className="text-sm font-bold text-white truncate">{user2.name || 'Unknown'}</p>
+                  <img src={getImageUrl(user2.profilePicture)} alt={user2.name} className="w-8 h-8 rounded-full object-cover border border-teal-500/30" />
+                </div>
+              </div>
+            );
+          }) : (
+            <p className="text-sm text-gray-500 italic">No connected pairs for this skill yet.</p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -317,6 +398,9 @@ const AdminDashboard = () => {
                            )}
                        </div>
                     </div>
+
+                    {renderSkillSessions()}
+
                   </div>
                 ) : (
                   <div className="space-y-4">

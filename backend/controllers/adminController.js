@@ -1,5 +1,7 @@
+// src/controllers/adminController.js
 const User = require('../models/User');
 const Report = require('../models/Report');
+const Session = require('../models/Session'); // NEW: Import Session model to fetch all sessions
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -60,6 +62,22 @@ exports.suspendUser = async (req, res) => {
     await user.save();
     
     res.json({ message: `User status changed`, isBlocked: user.isBlocked });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// NEW: Fetch all sessions for admin analytics
+exports.getAllSessions = async (req, res) => {
+  try {
+    const sessions = await Session.find()
+      .populate('userId1', 'name email profilePicture')
+      .populate('userId2', 'name email profilePicture');
+      
+    res.json({
+      total: sessions.length,
+      sessions: sessions
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
